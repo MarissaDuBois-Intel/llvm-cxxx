@@ -1,0 +1,120 @@
+# This file is licensed under the Apache License v2.0 with LLVM Exceptions.
+# See https://llvm.org/LICENSE.txt for license information.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+# Tests for LLVM libc CPP functions.
+
+load("//libc/test:libc_test_rules.bzl", "libc_test")
+
+package(default_visibility = ["//visibility:public"])
+
+licenses(["notice"])
+
+libc_test(
+    name = "atomic_test",
+    srcs = ["atomic_test.cpp"],
+    deps = ["//libc/src/__support/CPP:atomic"],
+)
+
+libc_test(
+    name = "bitset_test",
+    srcs = ["bitset_test.cpp"],
+    deps = ["//libc/src/__support/CPP:bitset"],
+)
+
+libc_test(
+    name = "bit_test",
+    srcs = ["bit_test.cpp"],
+    deps = [
+        "//libc/src/__support:big_int",
+        "//libc/src/__support/CPP:bit",
+        "//libc/src/__support/macros/properties:types",
+    ],
+)
+
+libc_test(
+    name = "cstddef_test",
+    srcs = ["cstddef_test.cpp"],
+    deps = ["//libc/src/__support/CPP:cstddef"],
+)
+
+libc_test(
+    name = "functional_test",
+    srcs = ["functional_test.cpp"],
+    deps = [
+        "//libc/src/__support/CPP:functional",
+        "//libc/src/__support/CPP:nullptr_t",
+        "//libc/src/__support/CPP:type_traits",
+    ],
+)
+
+libc_test(
+    name = "integer_sequence_test",
+    srcs = ["integer_sequence_test.cpp"],
+    deps = ["//libc/src/__support/CPP:utility"],
+)
+
+libc_test(
+    name = "limits_test",
+    srcs = ["limits_test.cpp"],
+    deps = [
+        "//libc/src/__support:big_int",
+        "//libc/src/__support/CPP:limits",
+        "//libc/src/__support/macros/properties:types",
+    ],
+)
+
+libc_test(
+    name = "optional_test",
+    srcs = ["optional_test.cpp"],
+    deps = ["//libc/src/__support/CPP:optional"],
+)
+
+libc_test(
+    name = "span_test",
+    srcs = ["span_test.cpp"],
+    deps = [
+        "//libc/src/__support/CPP:array",
+        "//libc/src/__support/CPP:cstddef",
+        "//libc/src/__support/CPP:span",
+        "//libc/src/__support/CPP:type_traits",
+    ],
+)
+
+libc_test(
+    name = "stringstream_test",
+    srcs = ["stringstream_test.cpp"],
+    deps = [
+        "//libc/src/__support/CPP:span",
+        "//libc/src/__support/CPP:string_view",
+        "//libc/src/__support/CPP:stringstream",
+    ],
+)
+
+libc_test(
+    name = "string_test",
+    srcs = ["string_test.cpp"],
+    deps = [
+        "//libc/src/__support/CPP:string",
+        "//libc/src/__support/CPP:string_view",
+    ],
+)
+
+libc_test(
+    name = "stringview_test",
+    srcs = ["stringview_test.cpp"],
+    deps = [
+        "//libc/src/__support/CPP:string_view",
+        "//libc/src/__support/CPP:type_traits",
+        "//libc/src/string/memory_utils",
+    ],
+)
+
+libc_test(
+    name = "type_traits_test",
+    srcs = ["type_traits_test.cpp"],
+    deps = [
+        "//libc/include:llvm_libc_macros_stdfix_macros",
+        "//libc/src/__support/CPP:type_traits",
+    ],
+)

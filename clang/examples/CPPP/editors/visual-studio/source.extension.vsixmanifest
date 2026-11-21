@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011">
+  <Metadata>
+    <Identity Id="CXXX.SyntaxHighlighting.5b66e184-56d5-4a01-9918-335075883f57"
+              Version="0.1.0" Language="en-US" Publisher="CXXX Local" />
+    <DisplayName>C+++ Syntax</DisplayName>
+    <Description xml:space="preserve">Highlight C+++ keywords in marked C/C++ source files.</Description>
+  </Metadata>
+  <Installation>
+    <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0,19.0)">
+      <ProductArchitecture>amd64</ProductArchitecture>
+    </InstallationTarget>
+    <InstallationTarget Id="Microsoft.VisualStudio.Pro" Version="[17.0,19.0)">
+      <ProductArchitecture>amd64</ProductArchitecture>
+    </InstallationTarget>
+    <InstallationTarget Id="Microsoft.VisualStudio.Enterprise" Version="[17.0,19.0)">
+      <ProductArchitecture>amd64</ProductArchitecture>
+    </InstallationTarget>
+  </Installation>
+  <Dependencies />
+  <Assets>
+    <Asset Type="Microsoft.VisualStudio.MefComponent" Path="CXXX.SyntaxHighlighting.dll" />
+  </Assets>
+  <Prerequisites>
+    <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor"
+                  Version="[17.0,19.0)" DisplayName="Visual Studio core editor" />
+  </Prerequisites>
+</PackageManifest>

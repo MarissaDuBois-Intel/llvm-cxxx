@@ -1,0 +1,252 @@
+# This file is licensed under the Apache License v2.0 with LLVM Exceptions.
+# See https://llvm.org/LICENSE.txt for license information.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+# LLVM libc unittest library.
+
+load("//libc/test:libc_test_rules.bzl", "libc_test_library")
+
+package(
+    default_visibility = ["//visibility:public"],
+    features = [
+        "parse_headers",
+        "-use_header_modules",
+        "layering_check",
+    ],
+)
+
+licenses(["notice"])
+
+libc_test_library(
+    name = "test_logger",
+    srcs = ["TestLogger.cpp"],
+    hdrs = ["TestLogger.h"],
+    deps = [
+        "//libc/hdr:stdint_proxy",
+        "//libc/hdr/func:aligned_alloc",
+        "//libc/hdr/func:free",
+        "//libc/hdr/func:malloc",
+        "//libc/hdr/func:realloc",
+        "//libc/src/__support:big_int",
+        "//libc/src/__support:uint128",
+        "//libc/src/__support/CPP:string",
+        "//libc/src/__support/CPP:string_view",
+        "//libc/src/__support/OSUtil:io",
+        "//libc/src/__support/macros:config",
+        "//libc/src/__support/macros/properties:types",
+    ],
+)
+
+libc_test_library(
+    name = "LibcUnitTest",
+    srcs = [
+        "BazelFilePath.cpp",
+        "ExecuteFunctionUnix.cpp",
+        "LibcDeathTestExecutors.cpp",
+        "LibcTest.cpp",
+        "LibcTestMain.cpp",
+    ],
+    hdrs = [
+        "CharLiteralUtils.h",
+        "ErrnoCheckingTest.h",
+        "ErrnoSetterMatcher.h",
+        "ExecuteFunction.h",
+        "LibcTest.h",
+        "Test.h",
+    ],
+    deps = [
+        ":string_utils",
+        ":test_logger",
+        "//libc/hdr:stdint_proxy",
+        "//libc/hdr/func:aligned_alloc",
+        "//libc/hdr/func:free",
+        "//libc/hdr/func:malloc",
+        "//libc/hdr/func:realloc",
+        "//libc/include:llvm_libc_macros_stdfix_macros",
+        "//libc/src/__support:c_string",
+        "//libc/src/__support:integer_to_string",
+        "//libc/src/__support:libc_assert",
+        "//libc/src/__support:libc_errno",
+        "//libc/src/__support:uint128",
+        "//libc/src/__support/CPP:bit",
+        "//libc/src/__support/CPP:bitset",
+        "//libc/src/__support/CPP:functional",
+        "//libc/src/__support/CPP:limits",
+        "//libc/src/__support/CPP:nullptr_t",
+        "//libc/src/__support/CPP:scope",
+        "//libc/src/__support/CPP:span",
+        "//libc/src/__support/CPP:string",
+        "//libc/src/__support/CPP:string_view",
+        "//libc/src/__support/CPP:type_traits",
+        "//libc/src/__support/FPUtil:fp_bits",
+        "//libc/src/__support/FPUtil:fpbits_str",
+        "//libc/src/__support/FPUtil:rounding_mode",
+        "//libc/src/__support/StringUtil",
+        "//libc/src/__support/fixed_point",
+        "//libc/src/__support/macros:config",
+        "//libc/src/__support/macros/properties:architectures",
+        "//libc/src/__support/macros/properties:compiler",
+        "//libc/src/__support/macros/properties:types",
+        "//libc/src/__support/wchar:string_converter",
+        "//libc/src/errno",
+        "//libc/src/time:clock",
+    ] + select({
+        "//libc:full_build": [
+            "//libc/include:llvm_libc_macros_poll_macros",
+            "//libc/include:llvm_libc_macros_signal_macros",
+            "//libc/include:llvm_libc_macros_sys_wait_macros",
+            "//libc/include:llvm_libc_types_pid_t",
+            "//libc/include:llvm_libc_types_struct_pollfd",
+            "//libc/src/poll",
+            "//libc/src/signal",
+            "//libc/src/signal:kill",
+            "//libc/src/stdio:fflush",
+            "//libc/src/stdio:stderr",
+            "//libc/src/stdio:stdout",
+            "//libc/src/stdlib:exit",
+            "//libc/src/stdlib:getenv",
+            "//libc/src/string:strsignal",
+            "//libc/src/sys/wait:waitpid",
+            "//libc/src/unistd:close",
+            "//libc/src/unistd:fork",
+            "//libc/src/unistd:pipe",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        "//libc:full_build_linux": [
+            "//libc/src/sys/prctl",
+        ],
+        "//conditions:default": [],
+    }),
+    # Force linking in this library's `main()` to surface
+    # a duplicate symbol error if a test defines its own main.
+    alwayslink = True,
+)
+
+libc_test_library(
+    name = "HermeticTestUtils",
+    srcs = ["HermeticTestUtils.cpp"],
+    # Only intended to be used with full-build tests.
+    target_compatible_with = select({
+        "//libc:full_build": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    deps = [
+        "//libc/hdr:errno_macros",
+        "//libc/hdr:stdint_proxy",
+        "//libc/src/__support:common",
+        "//libc/src/__support:libc_errno",
+        "//libc/src/__support/macros:config",
+        "//libc/src/stdlib:atexit",
+        "//libc/src/string:memcmp",
+        "//libc/src/string:memcpy",
+        "//libc/src/string:memmove",
+        "//libc/src/string:memset",
+        "//libc/src/strings:bcmp",
+        "//libc/src/strings:bzero",
+    ],
+)
+
+libc_test_library(
+    name = "LibcCTest",
+    srcs = ["LibcCTest.cpp"],
+    hdrs = ["LibcCTest.h"],
+    deps = [
+        ":LibcUnitTest",
+        "//libc/include:llvm_libc_common_h",
+    ],
+)
+
+libc_test_library(
+    name = "fp_test_helpers",
+    srcs = [
+        "FEnvSafeTest.cpp",
+        "FPExceptMatcher.cpp",
+        "RoundingModeUtils.cpp",
+    ],
+    hdrs = [
+        "FEnvSafeTest.h",
+        "FPExceptMatcher.h",
+        "FPMatcher.h",
+        "RoundingModeUtils.h",
+    ],
+    deps = [
+        ":LibcUnitTest",
+        ":string_utils",
+        ":test_logger",
+        "//libc/hdr:fenv_macros",
+        "//libc/hdr:math_macros",
+        "//libc/hdr:stdint_proxy",
+        "//libc/hdr/types:fenv_t",
+        "//libc/src/__support:libc_errno",
+        "//libc/src/__support/CPP:array",
+        "//libc/src/__support/CPP:bit",
+        "//libc/src/__support/CPP:bitset",
+        "//libc/src/__support/CPP:functional",
+        "//libc/src/__support/CPP:span",
+        "//libc/src/__support/CPP:type_traits",
+        "//libc/src/__support/CPP:utility",
+        "//libc/src/__support/FPUtil:fenv_impl",
+        "//libc/src/__support/FPUtil:fp_bits",
+        "//libc/src/__support/FPUtil:fpbits_str",
+        "//libc/src/__support/FPUtil:rounding_mode",
+        "//libc/src/__support/macros:config",
+        "//libc/src/__support/macros:optimization",
+        "//libc/src/__support/macros/properties:architectures",
+    ],
+)
+
+libc_test_library(
+    name = "memory_matcher",
+    srcs = [
+        "MemoryMatcher.cpp",
+    ],
+    hdrs = [
+        "MemoryMatcher.h",
+    ],
+    deps = [
+        ":LibcUnitTest",
+        "//libc/src/__support:ctype_utils",
+        "//libc/src/__support/CPP:bit",
+        "//libc/src/__support/CPP:bitset",
+        "//libc/src/__support/CPP:span",
+        "//libc/src/__support/CPP:type_traits",
+        "//libc/src/__support/macros:config",
+    ],
+)
+
+libc_test_library(
+    name = "printf_matcher",
+    srcs = [
+        "PrintfMatcher.cpp",
+    ],
+    hdrs = [
+        "PrintfMatcher.h",
+    ],
+    deps = [
+        ":LibcUnitTest",
+        ":string_utils",
+        "//libc/hdr:stdint_proxy",
+        "//libc/src/__support/CPP:type_traits",
+        "//libc/src/__support/FPUtil:fp_bits",
+        "//libc/src/__support/macros:config",
+        "//libc/src/__support/printf_core:printf_config",
+        "//libc/src/__support/printf_core:printf_core_structs",
+    ],
+)
+
+libc_test_library(
+    name = "string_utils",
+    hdrs = [
+        "StringUtils.h",
+    ],
+    deps = [
+        "//libc/src/__support:big_int",
+        "//libc/src/__support/CPP:string",
+        "//libc/src/__support/CPP:string_view",
+        "//libc/src/__support/CPP:type_traits",
+        "//libc/src/__support/macros:config",
+        "//libc/src/__support/macros/properties:types",
+        "//libc/src/__support/wchar:string_converter",
+    ],
+)

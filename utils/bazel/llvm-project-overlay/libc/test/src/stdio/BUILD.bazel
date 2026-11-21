@@ -1,0 +1,187 @@
+# This file is licensed under the Apache License v2.0 with LLVM Exceptions.
+# See https://llvm.org/LICENSE.txt for license information.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+# Tests for LLVM libc stdio.h functions.
+
+load("//libc/test:libc_test_rules.bzl", "libc_test")
+
+package(default_visibility = ["//visibility:public"])
+
+licenses(["notice"])
+
+libc_test(
+    name = "asprintf_test",
+    srcs = ["asprintf_test.cpp"],
+    deps = [
+        "//libc/src/stdio:asprintf",
+        "//libc/src/stdio:sprintf",
+        "//libc/src/string:memset",
+    ],
+)
+
+libc_test(
+    name = "sprintf_test",
+    srcs = ["sprintf_test.cpp"],
+    deps = [
+        "//libc/hdr:wchar_macros",
+        "//libc/hdr/types:wint_t",
+        "//libc/src/__support/FPUtil:fp_bits",
+        "//libc/src/__support/printf_core:printf_config",
+        "//libc/src/stdio:sprintf",
+        "//libc/test/UnitTest:fp_test_helpers",
+    ],
+)
+
+libc_test(
+    name = "snprintf_test",
+    srcs = ["snprintf_test.cpp"],
+    deps = [
+        "//libc/src/__support/CPP:limits",
+        "//libc/src/stdio:snprintf",
+    ],
+)
+
+libc_test(
+    name = "printf_test",
+    srcs = ["printf_test.cpp"],
+    deps = [
+        "//libc/src/stdio:printf",
+    ],
+)
+
+libc_test(
+    name = "fprintf_test",
+    srcs = ["fprintf_test.cpp"],
+    deps = [
+        "//libc/src/__support/CPP:limits",
+        "//libc/src/__support/macros/properties:architectures",
+        "//libc/src/stdio:fprintf",
+    ] + select({
+        "//libc:full_build": [
+            "//libc/src/stdio:fclose",
+            "//libc/src/stdio:ferror",
+            "//libc/src/stdio:fopen",
+            "//libc/src/stdio:fread",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+libc_test(
+    name = "vasprintf_test",
+    srcs = ["vasprintf_test.cpp"],
+    deps = [
+        "//libc/src/stdio:vasprintf",
+        "//libc/src/string:memset",
+    ],
+)
+
+libc_test(
+    name = "vsprintf_test",
+    srcs = ["vsprintf_test.cpp"],
+    deps = [
+        "//libc/src/stdio:vsprintf",
+    ],
+)
+
+libc_test(
+    name = "vsnprintf_test",
+    srcs = ["vsnprintf_test.cpp"],
+    deps = [
+        "//libc/src/stdio:vsnprintf",
+    ],
+)
+
+libc_test(
+    name = "vprintf_test",
+    srcs = ["vprintf_test.cpp"],
+    deps = [
+        "//libc/src/stdio:vprintf",
+    ],
+)
+
+libc_test(
+    name = "vfprintf_test",
+    srcs = ["vfprintf_test.cpp"],
+    deps = [
+        "//libc/src/stdio:vfprintf",
+    ] + select({
+        "//libc:full_build": [
+            "//libc/src/stdio:fclose",
+            "//libc/src/stdio:ferror",
+            "//libc/src/stdio:fopen",
+            "//libc/src/stdio:fread",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+libc_test(
+    name = "remove_test",
+    srcs = ["remove_test.cpp"],
+    deps = [
+        "//libc/hdr:sys_stat_macros",
+        "//libc/src/fcntl:open",
+        "//libc/src/stdio:remove",
+        "//libc/src/sys/stat:mkdirat",
+        "//libc/src/unistd:access",
+        "//libc/src/unistd:close",
+    ],
+)
+
+libc_test(
+    name = "sscanf_test",
+    srcs = ["sscanf_test.cpp"],
+    deps = [
+        "//libc/hdr:stdio_macros",
+        "//libc/src/__support/CPP:limits",
+        "//libc/src/__support/FPUtil:fp_bits",
+        "//libc/src/stdio:sscanf",
+        "//libc/test/UnitTest:fp_test_helpers",
+    ],
+)
+
+libc_test(
+    name = "fscanf_test",
+    srcs = ["fscanf_test.cpp"],
+    deps = [
+        "//libc/hdr:stdio_macros",
+        "//libc/src/__support/CPP:string_view",
+        "//libc/src/stdio:fscanf",
+    ] + select({
+        "//libc:full_build": [
+            "//libc/src/stdio:fclose",
+            "//libc/src/stdio:feof",
+            "//libc/src/stdio:ferror",
+            "//libc/src/stdio:fopen",
+            "//libc/src/stdio:fwrite",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+libc_test(
+    name = "vsscanf_test",
+    srcs = ["vsscanf_test.cpp"],
+    deps = [
+        "//libc/src/stdio:vsscanf",
+    ],
+)
+
+libc_test(
+    name = "vfscanf_test",
+    srcs = ["vfscanf_test.cpp"],
+    deps = [
+        "//libc/src/__support/CPP:string_view",
+        "//libc/src/stdio:vfscanf",
+    ] + select({
+        "//libc:full_build": [
+            "//libc/src/stdio:fclose",
+            "//libc/src/stdio:ferror",
+            "//libc/src/stdio:fopen",
+            "//libc/src/stdio:fwrite",
+        ],
+        "//conditions:default": [],
+    }),
+)

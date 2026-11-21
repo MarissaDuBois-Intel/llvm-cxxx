@@ -1,0 +1,217 @@
+//===-- SparcTargetMachine.cpp - Define TargetMachine for Sparc -----------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+//
+//===----------------------------------------------------------------------===//
+
+#include "SparcTargetMachine.h"
+#include "LeonPasses.h"
+#include "Sparc.h"
+#include "SparcMachineFunctionInfo.h"
+#include "SparcTargetObjectFile.h"
+#include "SparcTargetTransformInfo.h"
+#include "TargetInfo/SparcTargetInfo.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/TargetPassConfig.h"
+#include "llvm/MC/TargetRegistry.h"
+#include "llvm/Option/LibraryOptions.h"
+#include "llvm/Support/Compiler.h"
+#include <optional>
+using namespace llvm;
+
+extern "C" LLVM_ABI LLVM_EXTERNAL_VISIBILITY void LLVMInitializeSparcTarget() {
+  // Register the target.
+  RegisterTargetMachine<SparcV8TargetMachine> X(getTheSparcTarget());
+  RegisterTargetMachine<SparcV9TargetMachine> Y(getTheSparcV9Target());
+  RegisterTargetMachine<SparcelTargetMachine> Z(getTheSparcelTarget());
+  static opt::RegisterLibraryOptions<SparcOptions> O;
+
+  PassRegistry &PR = *PassRegistry::getPassRegistry();
+  initializeSparcAsmPrinterPass(PR);
+  initializeSparcDAGToDAGISelLegacyPass(PR);
+  initializeSparcErrataWorkaroundLegacyPass(PR);
+}
+
+static Reloc::Model getEffectiveRelocModel(std::optional<Reloc::Model> RM) {
+  return RM.value_or(Reloc::Static);
+}
+
+// Code models. Some only make sense for 64-bit code.
+//
+// SunCC  Reloc   CodeModel  Constraints
+// abs32  Static  Small      text+data+bss linked below 2^32 bytes
+// abs44  Static  Medium     text+data+bss linked below 2^44 bytes
+// abs64  Static  Large      text smaller than 2^31 bytes
+// pic13  PIC_    Small      GOT < 2^13 bytes
+// pic32  PIC_    Medium     GOT < 2^32 bytes
+//
+// All code models require that the text segment is smaller than 2GB.
+static CodeModel::Model
+getEffectiveSparcCodeModel(std::optional<CodeModel::Model> CM, Reloc::Model RM,
+                           bool Is64Bit, bool JIT) {
+  if (CM) {
+    if (*CM == CodeModel::Tiny)
+      report_fatal_error("Target does not support the tiny CodeModel", false);
+    if (*CM == CodeModel::Kernel)
+      report_fatal_error("Target does not support the kernel CodeModel", false);
+    return *CM;
+  }
+  if (Is64Bit) {
+    if (JIT)
+      return CodeModel::Large;
+    return RM == Reloc::PIC_ ? CodeModel::Small : CodeModel::Medium;
+  }
+  return CodeModel::Small;
+}
+
+/// Create an ILP32 architecture model
+SparcTargetMachine::SparcTargetMachine(const Target &T, const Triple &TT,
+                                       StringRef CPU, StringRef FS,
+                                       const TargetOptions &Options,
+                                       std::optional<Reloc::Model> RM,
+                                       std::optional<CodeModel::Model> CM,
+                                       CodeGenOptLevel OL, bool JIT)
+    : CodeGenTargetMachineImpl(
+          T, TT, CPU, FS, Options, getEffectiveRelocModel(RM),
+          getEffectiveSparcCodeModel(CM, getEffectiveRelocModel(RM),
+                                     TT.isSPARC64(), JIT),
+          OL),
+      CLOpts(cl::LibraryOptionsContext::get<SparcOptions>(
+          Options.MCOptions.LibraryOptions)),
+      TLOF(std::make_unique<SparcELFTargetObjectFile>()) {
+  initAsmInfo();
+}
+
+SparcTargetMachine::~SparcTargetMachine() = default;
+
+const SparcSubtarget *
+SparcTargetMachine::getSubtargetImpl(const Function &F) const {
+  AttributeSet FnAttrs = F.getAttributes().getFnAttrs();
+  const Module *M = F.getParent();
+  if (const SparcSubtarget *ST = LastSubtarget.lookup(FnAttrs, M))
+    return ST;
+
+  SubtargetAttrs Attrs;
+  Attrs.CPU = FnAttrs.getAttribute("target-cpu");
+  Attrs.TuneCPU = FnAttrs.getAttribute("tune-cpu");
+  Attrs.FS = FnAttrs.getAttribute("target-features");
+  Attrs.SoftFloat = FnAttrs.getAttribute("use-soft-float");
+
+  if (const SparcSubtarget *ST = LastSubtarget.lookup(FnAttrs, M, Attrs))
+    return ST;
+
+  StringRef CPU =
+      Attrs.CPU.isValid() ? Attrs.CPU.getValueAsString() : StringRef(TargetCPU);
+  StringRef TuneCPU =
+      Attrs.TuneCPU.isValid() ? Attrs.TuneCPU.getValueAsString() : CPU;
+  StringRef FS =
+      Attrs.FS.isValid() ? Attrs.FS.getValueAsString() : StringRef(TargetFS);
+
+  SmallString<256> Key({CPU, TuneCPU});
+
+  // Keep track of the start of the feature portion of the string.
+  unsigned FSStart = Key.size();
+  Key += FS;
+
+  // FIXME: This is related to the code below to reset the target options,
+  // we need to know whether or not the soft float flag is set on the
+  // function, so we can enable it as a subtarget feature.
+  if (Attrs.SoftFloat.getValueAsBool())
+    Key += FS.empty() ? "+soft-float" : ",+soft-float";
+
+  auto &I = SubtargetMap[Key];
+  if (!I)
+    I = std::make_unique<SparcSubtarget>(CPU, TuneCPU, Key.substr(FSStart),
+                                         *this);
+  LastSubtarget.set(FnAttrs, M, Attrs, I.get());
+  return I.get();
+}
+
+MachineFunctionInfo *SparcTargetMachine::createMachineFunctionInfo(
+    BumpPtrAllocator &Allocator, const Function &F,
+    const TargetSubtargetInfo *STI) const {
+  return SparcMachineFunctionInfo::create<SparcMachineFunctionInfo>(Allocator,
+                                                                    F, STI);
+}
+
+namespace {
+/// Sparc Code Generator Pass Configuration Options.
+class SparcPassConfig : public TargetPassConfig {
+public:
+  SparcPassConfig(SparcTargetMachine &TM, PassManagerBase &PM)
+    : TargetPassConfig(TM, PM) {}
+
+  SparcTargetMachine &getSparcTargetMachine() const {
+    return getTM<SparcTargetMachine>();
+  }
+
+  void addIRPasses() override;
+  bool addInstSelector() override;
+  void addPreEmitPass() override;
+};
+} // namespace
+
+TargetPassConfig *SparcTargetMachine::createPassConfig(PassManagerBase &PM) {
+  return new SparcPassConfig(*this, PM);
+}
+
+TargetTransformInfo
+SparcTargetMachine::getTargetTransformInfo(const Function &F) const {
+  return TargetTransformInfo(std::make_unique<SparcTTIImpl>(this, F));
+}
+
+void SparcPassConfig::addIRPasses() {
+  addPass(createAtomicExpandLegacyPass());
+
+  TargetPassConfig::addIRPasses();
+}
+
+bool SparcPassConfig::addInstSelector() {
+  addPass(createSparcDAGToDAGISelLegacyPass(getSparcTargetMachine(),
+                                            getOptLevel()));
+  return false;
+}
+
+void SparcPassConfig::addPreEmitPass(){
+  if (getSparcTargetMachine().getCLOpts().enable_branch_relax)
+    addPass(&BranchRelaxationPassID);
+
+  addPass(createSparcDelaySlotFillerLegacyPass());
+  addPass(new SparcErrataWorkaroundLegacy());
+}
+
+void SparcV8TargetMachine::anchor() { }
+
+SparcV8TargetMachine::SparcV8TargetMachine(const Target &T, const Triple &TT,
+                                           StringRef CPU, StringRef FS,
+                                           const TargetOptions &Options,
+                                           std::optional<Reloc::Model> RM,
+                                           std::optional<CodeModel::Model> CM,
+                                           CodeGenOptLevel OL, bool JIT)
+    : SparcTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, JIT) {}
+
+void SparcV9TargetMachine::anchor() { }
+
+SparcV9TargetMachine::SparcV9TargetMachine(const Target &T, const Triple &TT,
+                                           StringRef CPU, StringRef FS,
+                                           const TargetOptions &Options,
+                                           std::optional<Reloc::Model> RM,
+                                           std::optional<CodeModel::Model> CM,
+                                           CodeGenOptLevel OL, bool JIT)
+    : SparcTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, JIT) {}
+
+void SparcelTargetMachine::anchor() {}
+
+SparcelTargetMachine::SparcelTargetMachine(const Target &T, const Triple &TT,
+                                           StringRef CPU, StringRef FS,
+                                           const TargetOptions &Options,
+                                           std::optional<Reloc::Model> RM,
+                                           std::optional<CodeModel::Model> CM,
+                                           CodeGenOptLevel OL, bool JIT)
+    : SparcTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, JIT) {}

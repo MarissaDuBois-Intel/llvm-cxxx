@@ -1,0 +1,14 @@
+{
+  "name": "C+++",
+  "scopeName": "source.cxxx",
+  "patterns": [{ "include": "source.cpp" }],
+  "injections": {
+    "L:source.cxxx -comment -string": {
+      "patterns": [
+        { "name": "storage.type.cxxx", "match": "\\b(?:trine|Trine)\\b" },
+        { "name": "constant.language.other.cxxx", "match": "\\bother\\b" },
+        { "name": "keyword.control.otherwise.cxxx", "match": "\\botherwise\\b" }
+      ]
+    }
+  }
+}

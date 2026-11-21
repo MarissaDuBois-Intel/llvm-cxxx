@@ -1,0 +1,31 @@
+# RUN: llc -mtriple thumbv5e -run-pass=machine-cse -o - %s | FileCheck %s
+# RUN: llc -mtriple thumbv5e -passes=machine-cse -o - %s | FileCheck %s
+
+# This is a contrived example made to expose a bug in
+# MachineCSE, see PR32538.
+
+# MachineCSE must not remove this def of $cpsr:
+# CHECK-LABEL: bb.1:
+# CHECK: , $cpsr = tLSLri
+
+...
+---
+name:            spam
+liveins:
+  - { reg: '$r0', virtual-reg: '%0' }
+body:             |
+  bb.0:
+    liveins: $r0
+    %0:tgpr = COPY $r0
+    %1:tgpr, $cpsr = tLSLri %0, 2, 14, $noreg
+    tCMPi8 %0, 5, 14, $noreg, implicit-def $cpsr
+    tBcc %bb.8, 8, $cpsr
+
+  bb.1:
+    %2:tgpr, $cpsr = tLSLri %0, 2, 14, $noreg
+
+  bb.8:
+    liveins: $cpsr
+    %3:tgpr = COPY $cpsr
+    tSTRi %3, %0, 0, 14, $noreg
+...

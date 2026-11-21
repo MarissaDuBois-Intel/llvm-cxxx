@@ -1,0 +1,29 @@
+{
+  "name": "cxxx-syntax",
+  "displayName": "C+++ Syntax",
+  "description": "Syntax highlighting for experimental C+++ source files.",
+  "version": "0.1.0",
+  "publisher": "cxxx-local",
+  "license": "Apache-2.0 WITH LLVM-exception",
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Programming Languages"],
+  "main": "./extension.js",
+  "activationEvents": ["onLanguage:c", "onLanguage:cpp", "onLanguage:cxxx"],
+  "contributes": {
+    "languages": [{
+      "id": "cxxx",
+      "aliases": ["C+++", "CXXX", "cppp"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "cxxx",
+      "scopeName": "source.cxxx",
+      "path": "./cxxx.tmLanguage.json"
+    }],
+    "configurationDefaults": {
+      "[cxxx]": {
+        "editor.semanticHighlighting.enabled": false
+      }
+    }
+  }
+}

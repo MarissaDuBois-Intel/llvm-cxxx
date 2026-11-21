@@ -1,0 +1,54 @@
+# RUN: llc -mtriple=amdgpu6.00 -run-pass register-coalescer -o - %s | FileCheck %s
+
+# Test that register coalescing does not allow a call to
+# LIS->getInstructionIndex with a DBG_VALUE instruction, which does not have
+# a slot index.
+
+# CHECK: %9.sub2:sgpr_128 = S_MOV_B32 0
+# CHECK: DBG_VALUE{{.*}} %9.sub2
+
+--- |
+  define amdgpu_kernel void @test(ptr addrspace(1) %out) { ret void }
+
+  !0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !4, producer: "llvm", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, enums: !4, retainedTypes: !4)
+  !1 = !DILocalVariable(name: "a", scope: !2, file: !4, line: 126, type: !6)
+  !2 = distinct !DISubprogram(name: "test", scope: !4, file: !4, line: 1, type: !3, isLocal: false, isDefinition: true, scopeLine: 2, flags: DIFlagPrototyped, isOptimized: true, unit: !0, retainedNodes: !5)
+  !3 = !DISubroutineType(types: !4)
+  !4 = !{null}
+  !5 = !{!1}
+  !6 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !7, size: 64, align: 32)
+  !7 = !DIBasicType(name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
+  !8 = !DIExpression()
+  !9 = !DILocation(line: 126, column: 9, scope: !2)
+
+...
+---
+name:            test
+tracksRegLiveness: true
+liveins:
+  - { reg: '$sgpr0_sgpr1', virtual-reg: '%0' }
+  - { reg: '$vgpr0', virtual-reg: '%3' }
+body:             |
+  bb.0:
+    liveins: $sgpr0_sgpr1, $vgpr0
+
+    %3:vgpr_32 = COPY killed $vgpr0
+    %0:sgpr_64 = COPY killed $sgpr0_sgpr1
+    %4:sreg_64_xexec = S_LOAD_DWORDX2_IMM %0, 9, 0 :: (non-temporal dereferenceable invariant load (s64) from `ptr addrspace(4) poison`)
+    %5:sreg_32_xm0_xexec = S_LOAD_DWORD_IMM %0, 13, 0 :: (non-temporal dereferenceable invariant load (s32) from `ptr addrspace(4) poison`)
+    %18:vgpr_32 = V_ASHRREV_I32_e32 31, %3, implicit $exec
+    undef %19.sub0:vreg_64 = COPY %3
+    %19.sub1 = COPY %18
+    %10:sreg_32_xm0 = S_MOV_B32 61440
+    %11:sreg_32_xm0 = S_MOV_B32 0
+    DBG_VALUE debug-use %11, debug-use $noreg, !1, !8, debug-location !9
+    undef %12.sub0:sgpr_64 = COPY %11
+    %12.sub1 = COPY %10
+    undef %13.sub0_sub1:sgpr_128 = COPY %4
+    %13.sub2_sub3 = COPY %12
+    %20:vreg_64 = V_LSHL_B64_e64 %19, 2, implicit $exec
+    %16:vgpr_32 = COPY %5
+    BUFFER_STORE_DWORD_ADDR64 %16, %20, %13, 0, 0, 0, 0, implicit $exec :: (store (s32) into %ir.out)
+    S_ENDPGM 0
+
+...

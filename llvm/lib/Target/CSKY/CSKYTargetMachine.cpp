@@ -1,0 +1,130 @@
+//===--- CSKYTargetMachine.cpp - Define TargetMachine for CSKY ------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Implements the info about CSKY target spec.
+//
+//===----------------------------------------------------------------------===//
+
+#include "CSKYTargetMachine.h"
+#include "CSKY.h"
+#include "CSKYMachineFunctionInfo.h"
+#include "CSKYSubtarget.h"
+#include "CSKYTargetObjectFile.h"
+#include "TargetInfo/CSKYTargetInfo.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
+#include "llvm/CodeGen/TargetPassConfig.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/IR/Module.h"
+#include "llvm/MC/TargetRegistry.h"
+#include <optional>
+
+using namespace llvm;
+
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeCSKYTarget() {
+  RegisterTargetMachine<CSKYTargetMachine> X(getTheCSKYTarget());
+
+  PassRegistry *Registry = PassRegistry::getPassRegistry();
+  initializeCSKYConstantIslandsPass(*Registry);
+  initializeCSKYDAGToDAGISelLegacyPass(*Registry);
+}
+
+CSKYTargetMachine::CSKYTargetMachine(const Target &T, const Triple &TT,
+                                     StringRef CPU, StringRef FS,
+                                     const TargetOptions &Options,
+                                     std::optional<Reloc::Model> RM,
+                                     std::optional<CodeModel::Model> CM,
+                                     CodeGenOptLevel OL, bool JIT)
+    : CodeGenTargetMachineImpl(T, TT, CPU, FS, Options,
+                               RM.value_or(Reloc::Static),
+                               getEffectiveCodeModel(CM, CodeModel::Small), OL),
+      TLOF(std::make_unique<CSKYELFTargetObjectFile>()) {
+  initAsmInfo();
+}
+
+const CSKYSubtarget *
+CSKYTargetMachine::getSubtargetImpl(const Function &F) const {
+  AttributeSet FnAttrs = F.getAttributes().getFnAttrs();
+  const Module *M = F.getParent();
+  if (const CSKYSubtarget *ST = LastSubtarget.lookup(FnAttrs, M))
+    return ST;
+
+  SubtargetAttrs Attrs;
+  Attrs.CPU = FnAttrs.getAttribute("target-cpu");
+  Attrs.TuneCPU = FnAttrs.getAttribute("tune-cpu");
+  Attrs.FS = FnAttrs.getAttribute("target-features");
+  Attrs.FloatABI = M->getFloatABI();
+
+  if (const CSKYSubtarget *ST = LastSubtarget.lookup(FnAttrs, M, Attrs))
+    return ST;
+
+  StringRef CPU =
+      Attrs.CPU.isValid() ? Attrs.CPU.getValueAsString() : StringRef(TargetCPU);
+  StringRef TuneCPU =
+      Attrs.TuneCPU.isValid() ? Attrs.TuneCPU.getValueAsString() : CPU;
+  StringRef FS =
+      Attrs.FS.isValid() ? Attrs.FS.getValueAsString() : StringRef(TargetFS);
+
+  SmallString<256> Key({CPU, TuneCPU, FS});
+  Key +=
+      Attrs.FloatABI == FloatABI::Hard ? "+hard-float-abi" : "+soft-float-abi";
+  std::unique_ptr<CSKYSubtarget> &I = SubtargetMap[Key];
+  if (!I) {
+    I = std::make_unique<CSKYSubtarget>(TargetTriple, CPU, TuneCPU, FS,
+                                        Attrs.FloatABI, *this);
+    if (I->useHardFloat() && !I->hasAnyFloatExt())
+      errs() << "Hard-float can't be used with current CPU,"
+                " set to Soft-float\n";
+  }
+  LastSubtarget.set(FnAttrs, M, Attrs, I.get());
+  return I.get();
+}
+
+MachineFunctionInfo *CSKYTargetMachine::createMachineFunctionInfo(
+    BumpPtrAllocator &Allocator, const Function &F,
+    const TargetSubtargetInfo *STI) const {
+  return CSKYMachineFunctionInfo::create<CSKYMachineFunctionInfo>(Allocator, F,
+                                                                  STI);
+}
+
+namespace {
+class CSKYPassConfig : public TargetPassConfig {
+public:
+  CSKYPassConfig(CSKYTargetMachine &TM, PassManagerBase &PM)
+      : TargetPassConfig(TM, PM) {}
+
+  CSKYTargetMachine &getCSKYTargetMachine() const {
+    return getTM<CSKYTargetMachine>();
+  }
+
+  void addIRPasses() override;
+  bool addInstSelector() override;
+  void addPreEmitPass() override;
+};
+
+} // namespace
+
+TargetPassConfig *CSKYTargetMachine::createPassConfig(PassManagerBase &PM) {
+  return new CSKYPassConfig(*this, PM);
+}
+
+void CSKYPassConfig::addIRPasses() {
+  addPass(createAtomicExpandLegacyPass());
+  TargetPassConfig::addIRPasses();
+}
+
+bool CSKYPassConfig::addInstSelector() {
+  addPass(createCSKYISelDag(getCSKYTargetMachine(), getOptLevel()));
+
+  return false;
+}
+
+void CSKYPassConfig::addPreEmitPass() {
+  addPass(createCSKYConstantIslandPass());
+}
