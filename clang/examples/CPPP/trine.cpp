@@ -4,6 +4,7 @@
 
 static_assert(__is_scalar(trine), "C+++ requires the scalar trine type");
 static_assert(__is_signed(trine), "C+++ requires the signed trine type");
+static_assert(__is_integral(trine), "C+++ requires the integral trine type");
 static_assert(__is_fundamental(trine), "C+++ requires the native trine type");
 
 const char *boolean(bool value) { return value ? "true" : "false"; }
