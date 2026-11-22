@@ -131,9 +131,11 @@ bool show_when()
            checks);
 
     if (selected != encoding) return false;
+
     if (checks != 1) return false;
 
     int actions = 0;
+    
     when (state) { true: { actions += 1; } }
     
     when (state) { false: { actions += 2; }, }

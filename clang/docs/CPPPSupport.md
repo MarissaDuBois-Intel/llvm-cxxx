@@ -408,9 +408,9 @@ replace those.
 
 ### Visual Studio solution
 
-The example has a standalone CMake project that invokes the C+++ compiler
-instead of MSVC. After building Clang, generate the solution from the repository
-root:
+The example has a standalone CMake project. Its demo and language-test bodies
+use the C+++ compiler; the Google Test framework and runner use ordinary C++.
+After building Clang, generate the solution from the repository root:
 
 ```powershell
 cmake -S .\clang\examples\CPPP -B .\build-cppp\trine-vs `
@@ -442,11 +442,94 @@ Set `-DCXXX_WARN_MISSING_OTHERWISE=ON` to see the optional warnings on the demo'
 intentionally omitted handlers. Leave it `OFF` for the default build.
 
 If the compiler is in a different build directory, pass
-`-DCXXX_CLANG=C:\path\to\clang++.exe` when configuring. The project builds only
-the demonstration; rebuild Clang separately after changing the language
+`-DCXXX_CLANG=C:\path\to\clang++.exe` when configuring. The project builds the
+demonstration and tests; rebuild Clang separately after changing the language
 implementation. Visual Studio's built-in IntelliSense does not know C+++
 keywords and may show editor diagnostics even when the custom compiler accepts
 the program.
+
+### Google Test project
+
+The same solution includes **trine-tests**, enabled by default through
+`BUILD_TESTING`. Google Test is built from this repository's
+`third-party/unittest/googletest`; no download or separate installation is
+required. Use `-DBUILD_TESTING=OFF` for a demo-only build.
+
+```powershell
+cmake --build .\build-cppp\trine-vs --config Debug --target trine-tests
+ctest --test-dir .\build-cppp\trine-vs -C Debug --output-on-failure
+```
+
+Each named test checks one small behavior. There is no shared setup/teardown
+fixture. Comparison operators and operand pairs are separate tests, as are
+individual branch outcomes, evaluation rules, scope rules, and diagnostic
+settings. The tests use the same equality and ordering options as the demo;
+reconfigure and rebuild to test another supported mode.
+
+To run or debug the Google Test executable directly, select **trine-tests** as
+the startup project, or use:
+
+```powershell
+.\build-cppp\trine-vs\Debug\trine-tests.exe --gtest_list_tests
+.\build-cppp\trine-vs\Debug\trine-tests.exe --gtest_filter="When*.*"
+```
+
+CTest discovers the cases individually. Visual Studio Test Explorer can also
+run the executable when its Google Test adapter is installed; CTest and direct
+execution do not require that adapter.
+
+Google Test's headers use `other` as an ordinary identifier, so they cannot be
+included directly in C+++ source. A small adapter registers C+++ test functions
+through Google Test's public API and reports failures at the original source
+line. The boundary carries ordinary C++ function pointers, Boolean results,
+and decoded integers, not native trine values. Vendor headers are unchanged.
+Each C+++ test has a static `TestBody` with Google Test's naming convention so
+Visual Studio's PDB-based adapter can locate its source; these classes have no
+fixture instances or setup/teardown.
+Compiler-diagnostic cases run the configured Clang with `-verify`, checking
+messages and severity rather than merely expecting compilation to fail.
+
+The existing lit tests below remain responsible for broader driver, AST,
+coverage-mapping, PCH, and interpreter regression coverage.
+
+### How Visual Studio compiles C+++
+
+`project(Trine LANGUAGES CXX)` is a **CMake** declaration. It enables CMake's
+normal C++ toolchain for Google Test and its runner. `CXXX` is not a built-in
+CMake language, so writing `LANGUAGES CXXX` would not automatically enable our
+Clang extension. No changes to CMake itself are needed.
+
+The build paths are:
+
+```text
+Visual Studio Build / F5
+  -> MSBuild reads the CMake-generated .vcxproj files
+     -> trine-demo: CXXX_CLANG -x c+++ ... trine.cpp -> executable and PDB
+     -> language tests: CXXX_CLANG -x c+++ -c ... -> object files
+     -> Google Test and runner: ordinary C++ compiler -> object files/library
+     -> trine-tests: native linker combines those objects and Google Test
+  -> Visual Studio debugger launches the selected executable
+```
+
+The generated custom build rules name `CXXX_CLANG` explicitly, normally
+`build-cppp/bin/clang++.exe`. **`-x c+++` selects the language**, not the `.cpp`
+extension, editor highlighting, or solution name. The `.vcxproj` files are
+generated output; edit the repository's CMake configuration instead.
+
+To show the actual compiler invocation, use MSBuild's diagnostic verbosity
+(`--verbose` alone does not print this custom command):
+
+```powershell
+cmake --build .\build-cppp\trine-vs --config Debug --target trine-demo -- /v:diag
+```
+
+Inside Visual Studio, set **MSBuild project build output verbosity** to
+**Diagnostic**, build **trine-demo**, and inspect **Output > Build**.
+
+Look for the custom `clang++.exe` path and `-x c+++`. Debug compilation uses
+`-O0 -g -gcodeview`; the demo links with `/debug`, producing a PDB that Visual
+Studio can use normally. For the Google Test target, the C+++ object files and
+ordinary C++ objects use matching debug/release CRT settings.
 
 ### Syntax highlighting in VS Code and Visual Studio
 
