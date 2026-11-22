@@ -14,6 +14,14 @@ let Component = "Parse" in {
 let CategoryName = "Parse Issue" in {
 def err_cxxx_otherwise_compile_time_if : Error<
   "'otherwise' is not supported on 'if constexpr' or 'if consteval'">;
+def err_cxxx_when_case : Error<
+  "expected 'true', 'false', or 'other' case in 'when'">;
+def err_cxxx_when_empty : Error<"'when' requires at least one case">;
+def err_cxxx_when_duplicate : Error<
+  "duplicate '%select{true|false|other}0' case in 'when'">;
+def note_cxxx_when_previous : Note<"previous case is here">;
+def err_cxxx_when_separator : Error<
+  "expected ',' between 'when' cases">;
 // C23 compatibility with C17 and earlier.
 defm c_label_at_end_of_compound_statement : C23Compat<
   "label at end of compound statement is", /*ext_warn*/true>;

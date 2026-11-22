@@ -23,14 +23,14 @@ C code that is also valid C++ can be compiled directly in this mode. This is
 not a claim that every C program is valid C++: C-only constructs and existing
 C/C++ semantic differences are unchanged. Compile those translation units in
 normal C mode and use the usual `extern "C"` declarations to link them.
-Likewise, C+++ reserves the keywords `trine`, `Trine`, `other`, and `otherwise`; code using
-those names as identifiers must be renamed or kept in its
-original language mode.
+Likewise, C+++ reserves the keywords `trine`, `other`, `otherwise`, and `when`;
+code using those names as identifiers must be renamed or kept in its original
+language mode.
 
 ## The trine type
 
-`trine` (also spelled `Trine`) is a **fundamental signed integral type** in
-Clang's AST, distinct from both `bool` and `_BitInt(2)`. It has a two-bit value
+`trine` is a **fundamental signed integral type** in Clang's AST, distinct from
+both `bool` and `_BitInt(2)`. It has a two-bit value
 representation and is lowered to LLVM `i2`. No wrapper class, header, or runtime
 library is required. Clang's `__is_fundamental`, `__is_scalar`, and
 `__is_integral` type traits recognize it.
@@ -46,7 +46,7 @@ produced by its supported conversions. The sign uses two's-complement
 representation.
 As with `bool`, an independently addressable object occupies at least a byte;
 the two-bit value does not imply packed arrays or a fractional-byte `sizeof`.
-Loads and stores use a sign-extended byte representation. Trine bit-fields
+Loads and stores use a sign-extended byte representation. `trine` bit-fields
 require at least two bits; adjacent two-bit fields can share a byte.
 Target calling conventions may widen scalar arguments without changing the
 two-bit value representation.
@@ -61,7 +61,7 @@ does not initialize its value. Copying preserves all three states.
 trine state = false;
 state = true;
 state = other;
-Trine copy = state;
+trine copy = state;
 
 if (state == other) {
   int value = static_cast<int>(state); // -1
@@ -217,6 +217,127 @@ This extension applies only to ordinary `if` statements, including those
 evaluated inside constexpr functions. It does not extend `if constexpr`,
 `if consteval`, loops, `switch`, logical operators, or `?:`.
 
+### `when` state dispatch
+
+`when` selects a braced body by the value of a Boolean or trine expression:
+
+```cpp
+when (state) {
+  other: { handle_other(); },
+  true: { handle_true(); },
+  false: { handle_false(); }
+}
+```
+
+The expression is evaluated exactly once, and only the matching body executes.
+Cases can appear in any order, with no fallthrough. At least one case is
+required; each of `true`, `false`, and `other` may appear at most once.
+Omitted states do nothing:
+
+```cpp
+when (state) { true: { handle_true(); } }
+when (state) { false: { handle_false(); }, }
+when (state) { other: { handle_other(); } }
+when (state) {
+  other: { handle_other(); },
+  true: { handle_true(); },
+}
+```
+
+Commas are required **between** cases. A comma after the last or only case is
+optional. Semicolons terminate statements inside the bodies; they cannot replace
+the case-separating commas. Each body must have braces and its own block scope.
+
+The condition must have type `bool` or `trine` (including cv-qualified forms),
+not an integer or a class convertible to either type. Dependent template
+conditions are checked at instantiation. Condition declarations,
+init-statements, `default`, grouped cases, and guards are not supported.
+
+Boolean conditions select only `true` or `false`:
+
+```cpp
+bool ready = is_ready();
+when (ready) {
+  true: { handle_ready(); },
+  false: { handle_not_ready(); }
+}
+```
+
+An `other` case with a Boolean condition is permitted but produces
+`-Wwhen-bool-other` by default: Boolean dispatch can never select that case.
+This warning also applies when a dependent condition becomes `bool` during
+template instantiation. Use `-Wno-when-bool-other` to suppress it when intentional,
+or `-Werror=when-bool-other` to treat it as an error.
+
+Dispatch uses the same state selection as `if / else / otherwise`, independently
+of the trine equality and ordering flags. In particular, the `other` case still
+matches with `-fno-trine-other-equal`. Omitted cases are intentional and do not
+trigger `-Wtrine-missing-otherwise`.
+
+`when` is a statement, not a value-producing expression. It supports nesting,
+templates, precompiled headers, and evaluation inside constexpr functions.
+`return` leaves the containing function; `break` and `continue` retain their
+usual enclosing loop/switch targets. `when` introduces no new break target.
+
+### Combining `if` and `when`
+
+An `else` or `otherwise` body can itself be a `when` or an `if`. This supports
+`else when`, `otherwise when`, and `otherwise if` without an extra pair of
+braces:
+
+```cpp
+if (firstCondition) {
+  handle_first();
+} else if (secondCondition) {
+  handle_second();
+} else when (fallbackState) {
+  true: { handle_fallback_true(); },
+  false: { handle_fallback_false(); },
+  other: { handle_fallback_other(); }
+}
+otherwise if (recoveryCondition) {
+  handle_recovery();
+}
+else when (recoveryFallbackState) {
+  true: { handle_recovery_fallback(); }
+}
+otherwise when (recoveryOtherState) {
+  other: { handle_recovery_other(); }
+}
+```
+
+The first `else when` is entered only if both preceding conditions are false.
+An `other` result from either preceding trine condition skips that fallback and
+enters the outer `otherwise` handler.
+
+`otherwise if` starts an **inner conditional chain** in that handler. Its
+following `else when` and `otherwise when` belong to the inner `if`, not the
+outer one. It is equivalent to enclosing that entire inner chain in
+`otherwise { ... }`. If its condition is Boolean, only its true and false paths
+can be taken; a trine condition can also select its own `otherwise`.
+
+Alternatively, use `otherwise when (handlerState) { ... }` directly as the
+outer handler. Each `when` expression is evaluated exactly once, and only if its
+containing branch is entered. Its cases remain local: an omitted case does
+nothing and does not fall through or propagate to an outer `otherwise`.
+
+There is at most one terminal `else` and one terminal `otherwise` per chain,
+with `otherwise` last. Do not insert a semicolon between a branch body and a
+following `else` or `otherwise`. Commas separate only the cases inside a `when`;
+the last or only case needs no comma.
+
+For tooling that only needs to locate conditional headers, this regex recognizes
+all six forms (including `otherwise if`):
+
+```regex
+\b(?:else\s+(?:if|when)|otherwise\s+(?:if|when)|if|when)\s*(?=\()
+```
+
+This is a header recognizer, not a validator for complete C+++ statements. It
+does not distinguish code from comments or strings, handle comments between
+keywords, balance nested parentheses/braces, or check types and case rules.
+Full validation requires the compiler's lexer, parser, and semantic checks.
+
 ## Build on Windows
 
 Install Visual Studio's C++ build tools and Windows SDK, CMake, Ninja, and
@@ -260,8 +381,10 @@ other ordering: unordered
 
 The demo then prints every comparison operator for known trines, `other`,
 Booleans, and integers, and shows how to detect an unordered result. It also
-demonstrates all three branches, short-circuiting chains, omitted handlers, and
-ordinary Boolean comparisons. The three chains select branches `2`, `-1`, and
+demonstrates all three branches, short-circuiting chains, omitted handlers,
+ordinary Boolean comparisons, reordered and partial `when` cases, and combined
+`else when`, `otherwise if`, and `otherwise when` chains. The three
+chains select branches `2`, `-1`, and
 `0` after evaluating `2`, `2`, and `3` conditions respectively, in every
 comparison mode. Press
 **Enter** to exit (exit status 0).
@@ -327,7 +450,7 @@ the program.
 
 ### Syntax highlighting in VS Code and Visual Studio
 
-Local editor extensions highlight `trine`, `Trine`, `other`, and `otherwise`
+Local editor extensions highlight `trine`, `other`, `otherwise`, and `when`
 without changing ordinary C/C++ files. The demo already has this comment on its
 first line; add it to other C+++ source files and headers:
 
@@ -404,5 +527,10 @@ python .\build-cppp\bin\llvm-lit.py -v `
   .\clang\test\CodeGenCXX\cppp-trine-comparison.cpp `
   .\clang\test\CodeGenCXX\cppp-trine-if.cpp `
   .\clang\test\PCH\cppp-trine.cpp `
-  .\clang\test\PCH\cppp-trine-if.cpp
+  .\clang\test\PCH\cppp-trine-if.cpp `
+  .\clang\test\Driver\cppp-when.cpp `
+  .\clang\test\SemaCXX\cppp-when.cpp `
+  .\clang\test\SemaCXX\cppp-when-errors.cpp `
+  .\clang\test\CodeGenCXX\cppp-when.cpp `
+  .\clang\test\PCH\cppp-when.cpp
 ```

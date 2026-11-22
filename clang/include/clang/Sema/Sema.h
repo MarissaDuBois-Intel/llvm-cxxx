@@ -11267,6 +11267,14 @@ public:
                          SourceLocation OtherwiseLoc = SourceLocation(),
                          Stmt *Otherwise = nullptr, bool IsElseIf = false);
 
+  ExprResult ActOnWhenCondition(SourceLocation WhenLoc, Expr *Cond);
+  StmtResult BuildWhenStmt(SourceLocation WhenLoc, SourceLocation LParenLoc,
+                          SourceLocation RParenLoc, SourceLocation LBraceLoc,
+                          SourceLocation RBraceLoc, Expr *Cond,
+                          ArrayRef<WhenStmt::CaseKind> Kinds,
+                          ArrayRef<SourceLocation> Locs,
+                          ArrayRef<Stmt *> Bodies);
+
   ExprResult CheckSwitchCondition(SourceLocation SwitchLoc, Expr *Cond);
 
   StmtResult ActOnStartOfSwitchStmt(SourceLocation SwitchLoc,

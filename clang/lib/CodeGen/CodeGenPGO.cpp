@@ -351,6 +351,10 @@ struct MapRegionCounters : public RecursiveASTVisitor<MapRegionCounters> {
     return true;
   }
 
+  bool TraverseWhenStmt(WhenStmt *S) {
+    return TraverseStmt(S->getSemanticForm());
+  }
+
   bool TraverseIfStmt(IfStmt *If) {
     if (Stmt *Semantic = If->getSemanticForm())
       return TraverseStmt(Semantic);
@@ -772,6 +776,8 @@ struct ComputeRegionCounts : public ConstStmtVisitor<ComputeRegionCounts> {
     RecordNextStmtCount = true;
     Visit(S->getSubStmt());
   }
+
+  void VisitWhenStmt(const WhenStmt *S) { Visit(S->getSemanticForm()); }
 
   void VisitIfStmt(const IfStmt *S) {
     if (const Stmt *Semantic = S->getSemanticForm())

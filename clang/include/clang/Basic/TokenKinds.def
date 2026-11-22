@@ -363,9 +363,9 @@ KEYWORD(__ob_trap                   , KEYALL)
 
 // C++ 2.11p1: Keywords.
 KEYWORD(trine                       , KEYCXXX)
-ALIAS("Trine"                       , trine, KEYCXXX)
 KEYWORD(other                       , KEYCXXX)
 KEYWORD(otherwise                   , KEYCXXX)
+KEYWORD(when                        , KEYCXXX)
 KEYWORD(asm                         , KEYCXX|KEYGNU)
 KEYWORD(bool                        , BOOLSUPPORT|KEYC23)
 KEYWORD(catch                       , KEYCXX)

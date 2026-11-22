@@ -6862,6 +6862,8 @@ template <class Emitter> bool Compiler<Emitter>::visitStmt(const Stmt *S) {
     return visitReturnStmt(cast<ReturnStmt>(S));
   case Stmt::IfStmtClass:
     return visitIfStmt(cast<IfStmt>(S));
+  case Stmt::WhenStmtClass:
+    return visitStmt(cast<WhenStmt>(S)->getSemanticForm());
   case Stmt::WhileStmtClass:
     return visitWhileStmt(cast<WhileStmt>(S));
   case Stmt::DoStmtClass:

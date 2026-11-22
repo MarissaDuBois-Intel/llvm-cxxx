@@ -2352,6 +2352,18 @@ CheckConstexprFunctionStmt(Sema &SemaRef, const FunctionDecl *Dcl, Stmt *S,
     return true;
   }
 
+  case Stmt::WhenStmtClass: {
+    if (!Cxx1yLoc.isValid())
+      Cxx1yLoc = S->getBeginLoc();
+    auto *When = cast<WhenStmt>(S);
+    for (unsigned I = 0; I < When->getNumCases(); ++I)
+      if (!CheckConstexprFunctionStmt(SemaRef, Dcl, When->getCaseBody(I),
+                                      ReturnStmts, Cxx1yLoc, Cxx2aLoc, Cxx2bLoc,
+                                      Kind))
+        return false;
+    return true;
+  }
+
   case Stmt::WhileStmtClass:
   case Stmt::DoStmtClass:
   case Stmt::ForStmtClass:

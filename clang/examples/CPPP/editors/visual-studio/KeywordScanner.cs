@@ -25,7 +25,7 @@ namespace CXXX {
         @"|\b[0-9][\w'.]*" +
         "|(?:u8|u|U|L)?\"(?:\\\\[\\s\\S]|[^\"\\\\\\r\\n])*(?:\"|(?=\\r?\\n|\\z))" +
         @"|(?:u8|u|U|L)?'(?:\\[\s\S]|[^'\\\r\n])*(?:'|(?=\r?\n|\z))" +
-        @"|(?<keyword>\b(?:trine|Trine|other|otherwise)\b)",
+        @"|(?<keyword>\b(?:trine|other|otherwise|when)\b)",
         RegexOptions.Compiled);
 
     internal static List<KeywordSpan> Scan(string text) {

@@ -340,6 +340,7 @@ public:
 
   void VisitLoopControlStmt(const LoopControlStmt *LS);
   void VisitIfStmt(const IfStmt *IS);
+  void VisitWhenStmt(const WhenStmt *S);
   void VisitSwitchStmt(const SwitchStmt *SS);
   void VisitCaseStmt(const CaseStmt *CS);
   void VisitLabelStmt(const LabelStmt *LS);

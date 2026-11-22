@@ -25,6 +25,7 @@
 #include "llvm/ProfileData/Coverage/CoverageMappingWriter.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
+#include <array>
 #include <optional>
 
 // This selects the coverage mapping format defined when `InstrProfData.inc`
@@ -2068,9 +2069,123 @@ struct CounterCoverageMappingBuilder
     }
   }
 
+  const CompoundStmt *getCXXXIfBody(const IfStmt *S) {
+    const auto *Form = cast<CompoundStmt>(S->getSemanticForm());
+    auto Body = Form->body_rbegin();
+    if (S->getOtherwise())
+      ++Body;
+    return cast<CompoundStmt>(*Body);
+  }
+
+  // Use the lowered decisions' counters, but visit the written syntax. The
+  // synthetic flag tests and scopes do not have source-ordered ranges.
+  std::array<Counter, 3> coverCXXXCondition(const IfStmt *Source,
+                                            const IfStmt *Decision,
+                                            Counter ParentCount) {
+    const Expr *Cond = Source->getCond();
+    propagateCounts(ParentCount, Cond);
+    auto [ThenCount, NotThenCount] =
+        getBranchCounterPair(Decision, ParentCount);
+    if (!Cond->getType()->isTrineType()) {
+      createBranchRegion(Cond, ThenCount, NotThenCount);
+      return {ThenCount, NotThenCount, Counter::getZero()};
+    }
+    auto [ElseCount, OtherCount] =
+        getBranchCounterPair(cast<IfStmt>(Decision->getElse()), NotThenCount);
+    // These are state tests, not a contextual bool conversion of the trine.
+    popRegions(
+        pushRegion(ThenCount, getStart(Cond), getEnd(Cond), NotThenCount));
+    popRegions(pushRegion(ElseCount, getStart(Cond), getEnd(Cond), OtherCount));
+    return {ThenCount, ElseCount, OtherCount};
+  }
+
+  Counter coverCXXXIfChain(const IfStmt *S, const CompoundStmt *Lowered,
+                           Counter ParentCount, Counter &OtherCount) {
+    extendRegion(S);
+    if (S->getInit())
+      Visit(S->getInit());
+    if (S->getConditionVariableDeclStmt())
+      Visit(S->getConditionVariableDeclStmt());
+    const auto *Decision = cast<IfStmt>(Lowered->body_back());
+    auto Counts = coverCXXXCondition(S, Decision, ParentCount);
+    OtherCount = addCounters(OtherCount, Counts[2]);
+    Counter OutCount = propagateCounts(Counts[0], S->getThen());
+    bool ThenTerminates = HasTerminateStmt;
+    HasTerminateStmt = false;
+    if (const Stmt *Else = S->getElse()) {
+      const auto *Next = dyn_cast<IfStmt>(Else);
+      if (Next && Next->isElseIf()) {
+        const Stmt *LoweredElse =
+            S->getCond()->getType()->isTrineType()
+                ? cast<IfStmt>(Decision->getElse())->getThen()
+                : Decision->getElse();
+        size_t Index = pushRegion(Counts[1], getStart(Next), getEnd(Next));
+        OutCount = addCounters(
+            OutCount, coverCXXXIfChain(Next, cast<CompoundStmt>(LoweredElse),
+                                       Counts[1], OtherCount));
+        popRegions(Index);
+      } else {
+        OutCount = addCounters(OutCount, propagateCounts(Counts[1], Else));
+      }
+    } else {
+      OutCount = addCounters(OutCount, Counts[1]);
+    }
+    HasTerminateStmt |= ThenTerminates;
+    return OutCount;
+  }
+
+  void VisitWhenStmt(const WhenStmt *S) {
+    extendRegion(S);
+    Counter ParentCount = getRegion().getCounter();
+    const auto *If = cast<IfStmt>(S->getSemanticForm());
+    const auto *Decision = cast<IfStmt>(getCXXXIfBody(If)->body_back());
+    auto Counts = coverCXXXCondition(If, Decision, ParentCount);
+    Counts[2] = getRegionCounter(
+        cast<CompoundStmt>(If->getSemanticForm())->body_back());
+    Counter OutCount = Counter::getZero();
+    bool Seen[3] = {};
+    bool Terminates = HasTerminateStmt;
+    for (unsigned I = 0; I < S->getNumCases(); ++I) {
+      unsigned Kind = static_cast<unsigned>(S->getCaseKind(I));
+      Seen[Kind] = true;
+      HasTerminateStmt = false;
+      OutCount = addCounters(OutCount,
+                             propagateCounts(Counts[Kind], S->getCaseBody(I)));
+      Terminates |= HasTerminateStmt;
+    }
+    for (unsigned I = 0; I < 3; ++I)
+      if (!Seen[I])
+        OutCount = addCounters(OutCount, Counts[I]);
+    HasTerminateStmt = Terminates;
+    if (!IsCounterEqual(OutCount, ParentCount)) {
+      pushRegion(OutCount);
+      GapRegionCounter = OutCount;
+    }
+  }
+
   void VisitIfStmt(const IfStmt *S) {
-    if (const Stmt *Semantic = S->getSemanticForm())
-      return Visit(Semantic);
+    if (S->getSemanticForm()) {
+      Counter ParentCount = getRegion().getCounter();
+      Counter OtherCount = Counter::getZero();
+      Counter OutCount =
+          coverCXXXIfChain(S, getCXXXIfBody(S), ParentCount, OtherCount);
+      bool ChainTerminates = HasTerminateStmt;
+      HasTerminateStmt = false;
+      if (S->getOtherwise()) {
+        OtherCount = getRegionCounter(
+            cast<CompoundStmt>(S->getSemanticForm())->body_back());
+        OutCount = addCounters(OutCount,
+                               propagateCounts(OtherCount, S->getOtherwise()));
+      } else {
+        OutCount = addCounters(OutCount, OtherCount);
+      }
+      HasTerminateStmt |= ChainTerminates;
+      if (!IsCounterEqual(OutCount, ParentCount)) {
+        pushRegion(OutCount);
+        GapRegionCounter = OutCount;
+      }
+      return;
+    }
     // "if constexpr" and "if consteval" are not normal conditional statements,
     // their discarded statement should be skipped
     if (S->isConsteval())

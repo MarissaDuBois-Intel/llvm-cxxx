@@ -292,6 +292,15 @@ class StmtComparer {
 
   bool IsStmtEquivalent(const Stmt *S1, const Stmt *S2) { return true; }
 
+  bool IsStmtEquivalent(const WhenStmt *S1, const WhenStmt *S2) {
+    if (S1->getNumCases() != S2->getNumCases())
+      return false;
+    for (unsigned I = 0; I < S1->getNumCases(); ++I)
+      if (S1->getCaseKind(I) != S2->getCaseKind(I))
+        return false;
+    return true;
+  }
+
   bool IsStmtEquivalent(const GotoStmt *S1, const GotoStmt *S2) {
     LabelDecl *L1 = S1->getLabel();
     LabelDecl *L2 = S2->getLabel();

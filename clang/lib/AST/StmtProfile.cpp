@@ -288,6 +288,13 @@ void StmtProfiler::VisitIfStmt(const IfStmt *S) {
   ID.AddBoolean(S->isElseIf());
 }
 
+void StmtProfiler::VisitWhenStmt(const WhenStmt *S) {
+  VisitStmt(S);
+  ID.AddInteger(S->getNumCases());
+  for (unsigned I = 0; I < S->getNumCases(); ++I)
+    ID.AddInteger(static_cast<unsigned>(S->getCaseKind(I)));
+}
+
 void StmtProfiler::VisitSwitchStmt(const SwitchStmt *S) {
   VisitStmt(S);
   VisitDecl(S->getConditionVariable());

@@ -2269,6 +2269,72 @@ public:
   }
 };
 
+class WhenStmt final : public Stmt {
+public:
+  enum class CaseKind { True, False, Other };
+
+private:
+  SourceLocation WhenLoc, LParenLoc, RParenLoc, LBraceLoc, RBraceLoc;
+  SourceLocation CaseLocs[3];
+  CaseKind CaseKinds[3] = {};
+  unsigned NumCases = 0;
+  Stmt *SubStmts[4] = {};
+  // As with C+++ IfStmt, lowering is not a syntactic child.
+  Stmt *SemanticForm = nullptr;
+
+public:
+  WhenStmt(SourceLocation WhenLoc, SourceLocation LParenLoc,
+           SourceLocation RParenLoc, SourceLocation LBraceLoc,
+           SourceLocation RBraceLoc, Expr *Cond, ArrayRef<CaseKind> Kinds,
+           ArrayRef<SourceLocation> Locs, ArrayRef<Stmt *> Bodies);
+  explicit WhenStmt(EmptyShell Empty) : Stmt(WhenStmtClass, Empty) {}
+
+  unsigned getNumCases() const { return NumCases; }
+  void setNumCases(unsigned N) {
+    assert(N <= 3);
+    NumCases = N;
+  }
+  CaseKind getCaseKind(unsigned I) const { return CaseKinds[I]; }
+  StringRef getCaseName(unsigned I) const;
+  void setCaseKind(unsigned I, CaseKind Kind) { CaseKinds[I] = Kind; }
+  SourceLocation getCaseLoc(unsigned I) const { return CaseLocs[I]; }
+  void setCaseLoc(unsigned I, SourceLocation Loc) { CaseLocs[I] = Loc; }
+  Stmt *getCaseBody(unsigned I) { return SubStmts[I + 1]; }
+  const Stmt *getCaseBody(unsigned I) const { return SubStmts[I + 1]; }
+  void setCaseBody(unsigned I, Stmt *Body) { SubStmts[I + 1] = Body; }
+  Expr *getCond() { return reinterpret_cast<Expr *>(SubStmts[0]); }
+  const Expr *getCond() const {
+    return reinterpret_cast<const Expr *>(SubStmts[0]);
+  }
+  void setCond(Expr *Cond) { SubStmts[0] = reinterpret_cast<Stmt *>(Cond); }
+  Stmt *getSemanticForm() { return SemanticForm; }
+  const Stmt *getSemanticForm() const { return SemanticForm; }
+  void setSemanticForm(Stmt *S) { SemanticForm = S; }
+
+  SourceLocation getWhenLoc() const { return WhenLoc; }
+  void setWhenLoc(SourceLocation Loc) { WhenLoc = Loc; }
+  SourceLocation getLParenLoc() const { return LParenLoc; }
+  void setLParenLoc(SourceLocation Loc) { LParenLoc = Loc; }
+  SourceLocation getRParenLoc() const { return RParenLoc; }
+  void setRParenLoc(SourceLocation Loc) { RParenLoc = Loc; }
+  SourceLocation getLBraceLoc() const { return LBraceLoc; }
+  void setLBraceLoc(SourceLocation Loc) { LBraceLoc = Loc; }
+  SourceLocation getRBraceLoc() const { return RBraceLoc; }
+  void setRBraceLoc(SourceLocation Loc) { RBraceLoc = Loc; }
+  SourceLocation getBeginLoc() const { return WhenLoc; }
+  SourceLocation getEndLoc() const { return RBraceLoc; }
+
+  child_range children() {
+    return child_range(SubStmts, SubStmts + 1 + NumCases);
+  }
+  const_child_range children() const {
+    return const_child_range(SubStmts, SubStmts + 1 + NumCases);
+  }
+  static bool classof(const Stmt *S) {
+    return S->getStmtClass() == WhenStmtClass;
+  }
+};
+
 /// IfStmt - This represents an if/then/else.
 class IfStmt final
     : public Stmt,

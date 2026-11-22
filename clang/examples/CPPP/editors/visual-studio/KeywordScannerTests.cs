@@ -15,12 +15,12 @@ namespace CXXX {
     }
 
     private static void Main() {
-      Check("trine state = other; Trine copy; if (state) {} otherwise {}",
-            "trine other Trine otherwise");
-      Check("trine other otherwise", "", marked: false);
-      Check("trines another other_value otherwiseFlag _trine", "");
-      Check("// trine other\\\r\notherwise\r\nTrine", "Trine");
-      Check("/* trine\nother otherwise */ Trine", "Trine");
+      Check("trine state = other; trine copy; if (state) {} otherwise {}",
+            "trine other trine otherwise");
+      Check("trine other otherwise when", "", marked: false);
+      Check("Trine trines another other_value otherwiseFlag _trine", "");
+      Check("// trine other\\\r\notherwise\r\ntrine", "trine");
+      Check("/* trine\nother otherwise */ trine", "trine");
       Check("\"trine \\\" other\" 'x' u8\"otherwise\" trine", "trine");
       Check("R\"tag(trine\nother \" otherwise)tag\" other", "other");
       Check("u8R\"(otherwise)\" trine", "trine");
@@ -29,7 +29,13 @@ namespace CXXX {
       Check("1'000; other; 0x1'ff; trine", "other trine");
       Check("\"otherwise\ntrine", "trine");
       Check("otherwise", "otherwise");
-      Console.WriteLine("PASS: Visual Studio keyword scanner (12 cases)");
+      Check("when (state) { other: {}, true: {} }", "when other");
+      Check("// when\n\"when\" R\"(when)\" whenever when_value", "");
+      Check("if (s) {} else when (s) { other: {} } " +
+            "otherwise if (s) {} else when (s) { true: {} } " +
+            "otherwise when (s) { other: {} }",
+            "when other otherwise when otherwise when other");
+      Console.WriteLine("PASS: Visual Studio keyword scanner (16 cases)");
     }
   }
 }

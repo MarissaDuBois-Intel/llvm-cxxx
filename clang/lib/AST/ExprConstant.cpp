@@ -6016,6 +6016,9 @@ static EvalStmtResult EvaluateStmt(StmtResult &Result, EvalInfo &Info,
   if (const auto *I = dyn_cast<IfStmt>(S))
     if (const Stmt *Semantic = I->getSemanticForm())
       return EvaluateStmt(Result, Info, Semantic, Case);
+  if (const auto *W = dyn_cast<WhenStmt>(S))
+    if (const Stmt *Semantic = W->getSemanticForm())
+      return EvaluateStmt(Result, Info, Semantic, Case);
   if (!Info.nextStep(S))
     return ESR_Failed;
 

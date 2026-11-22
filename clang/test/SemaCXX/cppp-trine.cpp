@@ -7,7 +7,6 @@
 
 static_assert(__is_same(decltype(true), bool), "");
 static_assert(__is_same(decltype(false), bool), "");
-static_assert(__is_same(Trine, trine), "");
 static_assert(!__is_same(trine, bool), "");
 static_assert(!__is_same(trine, signed _BitInt(2)), "");
 static_assert(__is_same(decltype(other), trine), "");
@@ -17,7 +16,7 @@ static_assert(__is_integral(trine), "");
 static_assert(__is_signed(trine), "");
 static_assert(!__is_class(trine), "");
 static_assert(__is_trivially_copyable(trine), "");
-static_assert(!__is_identifier(trine) && !__is_identifier(Trine) &&
+static_assert(!__is_identifier(trine) && __is_identifier(Trine) &&
               !__is_identifier(other) && !__is_identifier(otherwise), "");
 
 constexpr trine f = false;
@@ -72,11 +71,12 @@ void assignments(bool b) {
   value = false;
   value = true;
   value = other;
-  Trine alias = value;
-  value = alias;
+  trine copy = value;
+  value = copy;
 }
 
 void invalid() {
+  Trine capitalized = other; // expected-error {{unknown type name 'Trine'}}
   trine integer = 2; // expected-error {{cannot initialize}}
   trine negative = -2; // expected-error {{cannot initialize}}
   trine number = -1; // expected-error {{cannot initialize}}

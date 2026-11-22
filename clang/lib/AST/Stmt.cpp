@@ -1007,6 +1007,36 @@ void MSAsmStmt::initialize(const ASTContext &C, StringRef asmstr,
                  });
 }
 
+WhenStmt::WhenStmt(SourceLocation WhenLoc, SourceLocation LParenLoc,
+                   SourceLocation RParenLoc, SourceLocation LBraceLoc,
+                   SourceLocation RBraceLoc, Expr *Cond,
+                   ArrayRef<CaseKind> Kinds, ArrayRef<SourceLocation> Locs,
+                   ArrayRef<Stmt *> Bodies)
+    : Stmt(WhenStmtClass), WhenLoc(WhenLoc), LParenLoc(LParenLoc),
+      RParenLoc(RParenLoc), LBraceLoc(LBraceLoc), RBraceLoc(RBraceLoc) {
+  assert(!Kinds.empty() && Kinds.size() <= 3 && Kinds.size() == Locs.size() &&
+         Kinds.size() == Bodies.size());
+  setNumCases(Kinds.size());
+  setCond(Cond);
+  for (unsigned I = 0; I < NumCases; ++I) {
+    setCaseKind(I, Kinds[I]);
+    setCaseLoc(I, Locs[I]);
+    setCaseBody(I, Bodies[I]);
+  }
+}
+
+StringRef WhenStmt::getCaseName(unsigned I) const {
+  switch (getCaseKind(I)) {
+  case CaseKind::True:
+    return "true";
+  case CaseKind::False:
+    return "false";
+  case CaseKind::Other:
+    return "other";
+  }
+  llvm_unreachable("invalid when case");
+}
+
 IfStmt::IfStmt(const ASTContext &Ctx, SourceLocation IL, IfStatementKind Kind,
                Stmt *Init, VarDecl *Var, Expr *Cond, SourceLocation LPL,
                SourceLocation RPL, Stmt *Then, SourceLocation EL, Stmt *Else,

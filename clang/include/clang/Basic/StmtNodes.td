@@ -10,6 +10,7 @@ def Stmt : StmtNode<?, 1>;
 def NullStmt : StmtNode<Stmt>;
 def CompoundStmt : StmtNode<Stmt>;
 def IfStmt : StmtNode<Stmt>;
+def WhenStmt : StmtNode<Stmt>;
 def SwitchStmt : StmtNode<Stmt>;
 def WhileStmt : StmtNode<Stmt>;
 def DoStmt : StmtNode<Stmt>;

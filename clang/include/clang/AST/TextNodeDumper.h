@@ -259,6 +259,7 @@ public:
 
   void VisitLoopControlStmt(const LoopControlStmt *L);
   void VisitIfStmt(const IfStmt *Node);
+  void VisitWhenStmt(const WhenStmt *Node);
   void VisitSwitchStmt(const SwitchStmt *Node);
   void VisitWhileStmt(const WhileStmt *Node);
   void VisitLabelStmt(const LabelStmt *Node);

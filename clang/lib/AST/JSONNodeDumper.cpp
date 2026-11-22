@@ -1736,6 +1736,13 @@ void JSONNodeDumper::VisitIfStmt(const IfStmt *IS) {
   attributeOnlyIfTrue("constevalIsNegated", IS->isNegatedConsteval());
 }
 
+void JSONNodeDumper::VisitWhenStmt(const WhenStmt *S) {
+  JOS.attributeArray("cases", [&] {
+    for (unsigned I = 0; I < S->getNumCases(); ++I)
+      JOS.value(S->getCaseName(I));
+  });
+}
+
 void JSONNodeDumper::VisitSwitchStmt(const SwitchStmt *SS) {
   attributeOnlyIfTrue("hasInit", SS->hasInitStorage());
   attributeOnlyIfTrue("hasVar", SS->hasVarStorage());

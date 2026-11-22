@@ -1560,6 +1560,12 @@ void TextNodeDumper::VisitIfStmt(const IfStmt *Node) {
   }
 }
 
+void TextNodeDumper::VisitWhenStmt(const WhenStmt *Node) {
+  OS << " cases";
+  for (unsigned I = 0; I < Node->getNumCases(); ++I)
+    OS << ' ' << Node->getCaseName(I);
+}
+
 void TextNodeDumper::VisitSwitchStmt(const SwitchStmt *Node) {
   if (Node->hasInitStorage())
     OS << " has_init";

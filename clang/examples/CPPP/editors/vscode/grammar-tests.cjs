@@ -35,7 +35,7 @@ async function run(appRoot) {
       const parsed = grammar.tokenizeLine(line, state);
       for (const token of parsed.tokens) {
         const scope = token.scopes.find(s =>
-          /^(storage\.type|constant\.language\.other|keyword\.control\.otherwise)\.cxxx$/.test(s));
+          /^(storage\.type|constant\.language\.other|keyword\.control\.(?:otherwise|when))\.cxxx$/.test(s));
         if (scope)
           result.push([line.slice(token.startIndex, token.endIndex), scope]);
       }
@@ -43,23 +43,41 @@ async function run(appRoot) {
     }
     return result;
   }
-  assert.deepEqual(keywords(cxxx, "trine state = other;\nTrine copy;\notherwise {}"), [
+  assert.deepEqual(keywords(cxxx, "trine state = other;\ntrine copy;\notherwise {}"), [
     ["trine", "storage.type.cxxx"], ["other", "constant.language.other.cxxx"],
-    ["Trine", "storage.type.cxxx"], ["otherwise", "keyword.control.otherwise.cxxx"]
+    ["trine", "storage.type.cxxx"], ["otherwise", "keyword.control.otherwise.cxxx"]
+  ]);
+  assert.deepEqual(keywords(cxxx, "when (state) { other: {}, true: {} }"), [
+    ["when", "keyword.control.when.cxxx"], ["other", "constant.language.other.cxxx"]
+  ]);
+  assert.deepEqual(keywords(cxxx,
+    "void dispatch() {\n    when (state) {\n      other: {},\n    }\n}"), [
+    ["when", "keyword.control.when.cxxx"], ["other", "constant.language.other.cxxx"]
+  ]);
+  assert.deepEqual(keywords(cxxx,
+    "if (state) {}\nelse when (state) { other: {} }\n" +
+    "otherwise if (state) {}\nelse when (state) { true: {} }\n" +
+    "otherwise when (state) { other: {} }"), [
+    ["when", "keyword.control.when.cxxx"], ["other", "constant.language.other.cxxx"],
+    ["otherwise", "keyword.control.otherwise.cxxx"],
+    ["when", "keyword.control.when.cxxx"],
+    ["otherwise", "keyword.control.otherwise.cxxx"],
+    ["when", "keyword.control.when.cxxx"], ["other", "constant.language.other.cxxx"]
   ]);
   const ignored = [
-    '// other trine otherwise\n/* Trine\nother */',
+    '// other trine otherwise when\n/* trine\nother when */',
     '"trine \\" otherwise" \'x\' u8"other"',
     'R"tag(trine\nother " otherwise)tag"',
-    "trines another other_value otherwiseFlag _trine",
+    "Trine trines another other_value otherwiseFlag _trine whenever when_value",
+    '"when" R"tag(when)tag"',
     "1'000; 0x1'ff;"
   ];
   for (const source of ignored)
     assert.deepEqual(keywords(cxxx, source), [], source);
-  assert.deepEqual(keywords(cpp, "trine state = other; otherwise {}"), []);
+  assert.deepEqual(keywords(cpp, "trine state = other; otherwise {} when(state);"), []);
   const demo = fs.readFileSync(path.join(__dirname, "..", "..", "trine.cpp"), "utf8");
   const demoTokens = keywords(cxxx, demo);
-  for (const word of ["trine", "Trine", "other", "otherwise"])
+  for (const word of ["trine", "other", "otherwise", "when"])
     assert(demoTokens.some(token => token[0] === word), `Demo missing ${word}`);
   registry.dispose();
   console.log(`PASS: VS Code grammar, including ${demoTokens.length} demo keyword tokens`);

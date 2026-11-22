@@ -772,6 +772,7 @@ static void AddStmtsExprs(llvm::BitstreamWriter &Stream,
   RECORD(STMT_LABEL);
   RECORD(STMT_ATTRIBUTED);
   RECORD(STMT_IF);
+  RECORD(STMT_WHEN);
   RECORD(STMT_SWITCH);
   RECORD(STMT_WHILE);
   RECORD(STMT_DO);

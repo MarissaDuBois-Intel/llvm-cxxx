@@ -1449,6 +1449,15 @@ public:
                                  IsElseIf);
   }
 
+  StmtResult RebuildWhenStmt(
+      SourceLocation WhenLoc, SourceLocation LParenLoc, SourceLocation RParenLoc,
+      SourceLocation LBraceLoc, SourceLocation RBraceLoc, Expr *Cond,
+      ArrayRef<WhenStmt::CaseKind> Kinds, ArrayRef<SourceLocation> Locs,
+      ArrayRef<Stmt *> Bodies) {
+    return getSema().BuildWhenStmt(WhenLoc, LParenLoc, RParenLoc, LBraceLoc,
+                                   RBraceLoc, Cond, Kinds, Locs, Bodies);
+  }
+
   /// Start building a new switch statement.
   ///
   /// By default, performs semantic analysis to build the new statement.
@@ -8638,6 +8647,32 @@ TreeTransform<Derived>::TransformIfStmt(IfStmt *S) {
       S->getIfLoc(), S->getStatementKind(), S->getLParenLoc(), Cond,
       S->getRParenLoc(), Init.get(), Then.get(), S->getElseLoc(), Else.get(),
       S->getOtherwiseLoc(), Otherwise.get(), S->isElseIf());
+}
+
+template<typename Derived>
+StmtResult
+TreeTransform<Derived>::TransformWhenStmt(WhenStmt *S) {
+  ExprResult Cond = getDerived().TransformExpr(S->getCond());
+  if (Cond.isInvalid())
+    return StmtError();
+  Cond = getSema().ActOnWhenCondition(S->getWhenLoc(), Cond.get());
+  if (Cond.isInvalid())
+    return StmtError();
+
+  SmallVector<WhenStmt::CaseKind, 3> Kinds;
+  SmallVector<SourceLocation, 3> Locs;
+  SmallVector<Stmt *, 3> Bodies;
+  for (unsigned I = 0; I < S->getNumCases(); ++I) {
+    StmtResult Body = getDerived().TransformStmt(S->getCaseBody(I));
+    if (Body.isInvalid())
+      return StmtError();
+    Kinds.push_back(S->getCaseKind(I));
+    Locs.push_back(S->getCaseLoc(I));
+    Bodies.push_back(Body.get());
+  }
+  return getDerived().RebuildWhenStmt(
+      S->getWhenLoc(), S->getLParenLoc(), S->getRParenLoc(), S->getLBraceLoc(),
+      S->getRBraceLoc(), Cond.get(), Kinds, Locs, Bodies);
 }
 
 template<typename Derived>

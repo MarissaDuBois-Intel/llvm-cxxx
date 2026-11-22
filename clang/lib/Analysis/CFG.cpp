@@ -2437,6 +2437,9 @@ CFGBlock *CFGBuilder::Visit(Stmt * S, AddStmtChoice asc,
     case Stmt::IfStmtClass:
       return VisitIfStmt(cast<IfStmt>(S));
 
+    case Stmt::WhenStmtClass:
+      return Visit(cast<WhenStmt>(S)->getSemanticForm(), asc);
+
     case Stmt::ImplicitCastExprClass:
       return VisitImplicitCastExpr(cast<ImplicitCastExpr>(S), asc);
 

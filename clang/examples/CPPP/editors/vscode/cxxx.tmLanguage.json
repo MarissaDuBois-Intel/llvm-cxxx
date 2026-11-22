@@ -5,9 +5,17 @@
   "injections": {
     "L:source.cxxx -comment -string": {
       "patterns": [
-        { "name": "storage.type.cxxx", "match": "\\b(?:trine|Trine)\\b" },
+        { "name": "storage.type.cxxx", "match": "\\btrine\\b" },
+        {
+          "match": "[ \\t]*\\b(other)\\b(?=[ \\t]*:(?!:))",
+          "captures": { "1": { "name": "constant.language.other.cxxx" } }
+        },
         { "name": "constant.language.other.cxxx", "match": "\\bother\\b" },
-        { "name": "keyword.control.otherwise.cxxx", "match": "\\botherwise\\b" }
+        { "name": "keyword.control.otherwise.cxxx", "match": "\\botherwise\\b" },
+        {
+          "match": "[ \\t]*\\b(when)\\b",
+          "captures": { "1": { "name": "keyword.control.when.cxxx" } }
+        }
       ]
     }
   }

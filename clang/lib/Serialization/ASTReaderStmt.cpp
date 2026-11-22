@@ -249,6 +249,23 @@ void ASTStmtReader::VisitIfStmt(IfStmt *S) {
     S->setOtherwiseLoc(readSourceLocation());
 }
 
+void ASTStmtReader::VisitWhenStmt(WhenStmt *S) {
+  VisitStmt(S);
+  S->setNumCases(Record.readInt());
+  S->setCond(Record.readSubExpr());
+  for (unsigned I = 0; I < S->getNumCases(); ++I) {
+    S->setCaseKind(I, static_cast<WhenStmt::CaseKind>(Record.readInt()));
+    S->setCaseLoc(I, readSourceLocation());
+    S->setCaseBody(I, Record.readSubStmt());
+  }
+  S->setSemanticForm(Record.readSubStmt());
+  S->setWhenLoc(readSourceLocation());
+  S->setLParenLoc(readSourceLocation());
+  S->setRParenLoc(readSourceLocation());
+  S->setLBraceLoc(readSourceLocation());
+  S->setRBraceLoc(readSourceLocation());
+}
+
 void ASTStmtReader::VisitSwitchStmt(SwitchStmt *S) {
   VisitStmt(S);
 
@@ -3246,6 +3263,10 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
                               HasCXXXStorage);
       break;
     }
+
+    case STMT_WHEN:
+      S = new (Context) WhenStmt(Empty);
+      break;
 
     case STMT_SWITCH:
       S = SwitchStmt::CreateEmpty(

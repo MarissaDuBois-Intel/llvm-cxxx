@@ -379,6 +379,20 @@ void StmtPrinter::VisitIfStmt(IfStmt *If) {
   PrintRawIfStmt(If);
 }
 
+void StmtPrinter::VisitWhenStmt(WhenStmt *Node) {
+  Indent() << "when (";
+  PrintExpr(Node->getCond());
+  OS << ") {" << NL;
+  IndentLevel += Policy.Indentation;
+  for (unsigned I = 0; I < Node->getNumCases(); ++I) {
+    Indent() << Node->getCaseName(I) << ": ";
+    PrintRawCompoundStmt(cast<CompoundStmt>(Node->getCaseBody(I)));
+    OS << ',' << NL;
+  }
+  IndentLevel -= Policy.Indentation;
+  Indent() << '}' << NL;
+}
+
 void StmtPrinter::VisitSwitchStmt(SwitchStmt *Node) {
   Indent() << "switch (";
   if (Node->getInit())

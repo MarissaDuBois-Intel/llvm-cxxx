@@ -1129,6 +1129,55 @@ StmtResult Sema::BuildIfStmt(SourceLocation IfLoc,
   return Result;
 }
 
+ExprResult Sema::ActOnWhenCondition(SourceLocation WhenLoc, Expr *Cond) {
+  ExprResult Checked = CheckPlaceholderExpr(Cond);
+  if (Checked.isInvalid())
+    return ExprError();
+  Cond = Checked.get();
+  if (!Cond->isTypeDependent()) {
+    if (!Cond->getType()->isTrineType() && !Cond->getType()->isBooleanType())
+      return ExprError(Diag(Cond->getExprLoc(), diag::err_cxxx_when_condition)
+                       << Cond->getType() << Cond->getSourceRange());
+    Checked = DefaultLvalueConversion(Cond);
+    if (Checked.isInvalid())
+      return ExprError();
+  }
+  return ActOnFinishFullExpr(Checked.get(), WhenLoc, false);
+}
+
+StmtResult Sema::BuildWhenStmt(SourceLocation WhenLoc, SourceLocation LParenLoc,
+                               SourceLocation RParenLoc,
+                               SourceLocation LBraceLoc,
+                               SourceLocation RBraceLoc, Expr *Cond,
+                               ArrayRef<WhenStmt::CaseKind> Kinds,
+                               ArrayRef<SourceLocation> Locs,
+                               ArrayRef<Stmt *> Bodies) {
+  auto *Result =
+      new (Context) WhenStmt(WhenLoc, LParenLoc, RParenLoc, LBraceLoc,
+                             RBraceLoc, Cond, Kinds, Locs, Bodies);
+  if (Cond->isTypeDependent())
+    return Result;
+
+  Stmt *Arms[3] = {};
+  for (unsigned I = 0; I < Kinds.size(); ++I) {
+    Arms[static_cast<unsigned>(Kinds[I])] = Bodies[I];
+    if (Kinds[I] == WhenStmt::CaseKind::Other &&
+        Cond->getType()->isBooleanType())
+      Diag(Locs[I], diag::warn_cxxx_when_bool_other);
+  }
+  if (!Arms[0])
+    Arms[0] = new (Context) NullStmt(WhenLoc);
+  // Omitted when arms are intentional, not missing otherwise handlers.
+  if (!Arms[2])
+    Arms[2] = new (Context) NullStmt(WhenLoc);
+  auto *If = IfStmt::Create(Context, WhenLoc, IfStatementKind::Ordinary,
+                            nullptr, nullptr, Cond, LParenLoc, RParenLoc,
+                            Arms[0], WhenLoc, Arms[1], WhenLoc, Arms[2]);
+  If->setSemanticForm(BuildCXXXIfSemanticForm(If));
+  Result->setSemanticForm(If);
+  return Result;
+}
+
 Stmt *Sema::BuildCXXXIfSemanticForm(IfStmt *Root) {
   auto Next = [](IfStmt *S) -> IfStmt * {
     auto *I = dyn_cast_if_present<IfStmt>(S->getElse());

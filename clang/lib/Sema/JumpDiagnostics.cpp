@@ -315,6 +315,9 @@ void JumpScopeChecker::BuildScopeInformation(Stmt *S,
   if (auto *I = dyn_cast<IfStmt>(S))
     if (Stmt *Semantic = I->getSemanticForm())
       return BuildScopeInformation(Semantic, origParentScope);
+  if (auto *W = dyn_cast<WhenStmt>(S))
+    if (Stmt *Semantic = W->getSemanticForm())
+      return BuildScopeInformation(Semantic, origParentScope);
   // If this is a statement, rather than an expression, scopes within it don't
   // propagate out into the enclosing scope.  Otherwise we have to worry
   // about block literals, which have the lifetime of their enclosing statement.

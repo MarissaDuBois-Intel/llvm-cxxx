@@ -11491,6 +11491,11 @@ def warn_empty_if_body : Warning<
 def warn_trine_missing_otherwise : Warning<
   "trine condition has no 'otherwise' handler; 'other' skips the entire if chain">,
   InGroup<DiagGroup<"trine-missing-otherwise">>, DefaultIgnore;
+def err_cxxx_when_condition : Error<
+  "'when' requires a bool or trine expression (%0 invalid)">;
+def warn_cxxx_when_bool_other : Warning<
+  "'other' case is never selected by a 'bool' condition">,
+  InGroup<DiagGroup<"when-bool-other">>;
 def warn_empty_for_body : Warning<
   "for loop has empty body">, InGroup<EmptyBody>;
 def warn_empty_range_based_for_body : Warning<

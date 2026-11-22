@@ -297,6 +297,8 @@ Retry:
 
   case tok::kw_if:                  // C99 6.8.4.1: if-statement
     return ParseIfStatement(TrailingElseLoc);
+  case tok::kw_when:
+    return ParseWhenStatement();
   case tok::kw_switch:              // C99 6.8.4.2: switch-statement
     return ParseSwitchStatement(TrailingElseLoc, PrecedingLabel);
 
@@ -1704,6 +1706,93 @@ StmtResult Parser::ParseIfStatement(SourceLocation *TrailingElseLoc,
   return Actions.ActOnIfStmt(IfLoc, Kind, LParen, InitStmt.get(), Cond, RParen,
                              ThenStmt.get(), ElseLoc, ElseStmt.get(),
                              OtherwiseLoc, Otherwise.get(), IsElseIf);
+}
+
+StmtResult Parser::ParseWhenStatement() {
+  SourceLocation WhenLoc = ConsumeToken();
+  ParseScope WhenScope(this, Scope::DeclScope | Scope::ControlScope);
+  BalancedDelimiterTracker Parens(*this, tok::l_paren);
+  if (Parens.expectAndConsume(diag::err_expected_lparen_after, "when"))
+    return StmtError();
+  ExprResult Cond = ParseExpression();
+  if (Cond.isInvalid()) {
+    Parens.skipToEnd();
+    return StmtError();
+  }
+  if (Parens.consumeClose())
+    return StmtError();
+  Cond = Actions.ActOnWhenCondition(WhenLoc, Cond.get());
+
+  BalancedDelimiterTracker Braces(*this, tok::l_brace);
+  if (Braces.expectAndConsume())
+    return StmtError();
+  SmallVector<WhenStmt::CaseKind, 3> Kinds;
+  SmallVector<SourceLocation, 3> Locs;
+  SmallVector<Stmt *, 3> Bodies;
+  SourceLocation Seen[3];
+  bool Invalid = Cond.isInvalid();
+  while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
+    WhenStmt::CaseKind Kind;
+    switch (Tok.getKind()) {
+    case tok::kw_true:
+      Kind = WhenStmt::CaseKind::True;
+      break;
+    case tok::kw_false:
+      Kind = WhenStmt::CaseKind::False;
+      break;
+    case tok::kw_other:
+      Kind = WhenStmt::CaseKind::Other;
+      break;
+    default:
+      Diag(Tok, diag::err_cxxx_when_case);
+      Braces.skipToEnd();
+      return StmtError();
+    }
+    SourceLocation CaseLoc = ConsumeToken();
+    unsigned Index = static_cast<unsigned>(Kind);
+    bool Duplicate = Seen[Index].isValid();
+    if (Duplicate) {
+      Diag(CaseLoc, diag::err_cxxx_when_duplicate) << Index;
+      Diag(Seen[Index], diag::note_cxxx_when_previous);
+      Invalid = true;
+    } else {
+      Seen[Index] = CaseLoc;
+    }
+    if (ExpectAndConsume(tok::colon)) {
+      Braces.skipToEnd();
+      return StmtError();
+    }
+    if (Tok.isNot(tok::l_brace)) {
+      Diag(Tok, diag::err_expected) << tok::l_brace;
+      Braces.skipToEnd();
+      return StmtError();
+    }
+    StmtResult Body = ParseCompoundStatement();
+    if (Body.isInvalid())
+      Invalid = true;
+    if (!Duplicate) {
+      Kinds.push_back(Kind);
+      Locs.push_back(CaseLoc);
+      Bodies.push_back(Body.isInvalid() ? nullptr : Body.get());
+    }
+    if (Tok.is(tok::r_brace))
+      break;
+    if (!TryConsumeToken(tok::comma)) {
+      Diag(Tok, diag::err_cxxx_when_separator);
+      Braces.skipToEnd();
+      return StmtError();
+    }
+  }
+  if (Kinds.empty()) {
+    Diag(Braces.getOpenLocation(), diag::err_cxxx_when_empty);
+    Invalid = true;
+  }
+  if (Braces.consumeClose() || Invalid)
+    return StmtError();
+  return Actions.BuildWhenStmt(
+      WhenLoc, Parens.getOpenLocation(), Parens.getCloseLocation(),
+      Braces.getOpenLocation(), Braces.getCloseLocation(), Cond.get(), Kinds,
+      Locs, Bodies);
 }
 
 StmtResult Parser::ParseSwitchStatement(SourceLocation *TrailingElseLoc,

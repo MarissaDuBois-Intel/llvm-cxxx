@@ -597,6 +597,7 @@ namespace clang {
     ExpectedStmt VisitLabelStmt(LabelStmt *S);
     ExpectedStmt VisitAttributedStmt(AttributedStmt *S);
     ExpectedStmt VisitIfStmt(IfStmt *S);
+    ExpectedStmt VisitWhenStmt(WhenStmt *S);
     ExpectedStmt VisitSwitchStmt(SwitchStmt *S);
     ExpectedStmt VisitWhileStmt(WhileStmt *S);
     ExpectedStmt VisitDoStmt(DoStmt *S);
@@ -7267,6 +7268,32 @@ ExpectedStmt ASTNodeImporter::VisitIfStmt(IfStmt *S) {
       ToElse, ToOtherwiseLoc, ToOtherwise, S->isElseIf());
   if (Result->hasCXXXStorage())
     Result->setSemanticForm(ToSemanticForm);
+  return Result;
+}
+
+ExpectedStmt ASTNodeImporter::VisitWhenStmt(WhenStmt *S) {
+  Error Err = Error::success();
+  auto WhenLoc = importChecked(Err, S->getWhenLoc());
+  auto LParenLoc = importChecked(Err, S->getLParenLoc());
+  auto RParenLoc = importChecked(Err, S->getRParenLoc());
+  auto LBraceLoc = importChecked(Err, S->getLBraceLoc());
+  auto RBraceLoc = importChecked(Err, S->getRBraceLoc());
+  auto Cond = importChecked(Err, S->getCond());
+  SmallVector<WhenStmt::CaseKind, 3> Kinds;
+  SmallVector<SourceLocation, 3> Locs;
+  SmallVector<Stmt *, 3> Bodies;
+  for (unsigned I = 0; I < S->getNumCases(); ++I) {
+    Kinds.push_back(S->getCaseKind(I));
+    Locs.push_back(importChecked(Err, S->getCaseLoc(I)));
+    Bodies.push_back(importChecked(Err, S->getCaseBody(I)));
+  }
+  auto Semantic = importChecked(Err, S->getSemanticForm());
+  if (Err)
+    return std::move(Err);
+  auto *Result = new (Importer.getToContext())
+      WhenStmt(WhenLoc, LParenLoc, RParenLoc, LBraceLoc, RBraceLoc, Cond, Kinds,
+               Locs, Bodies);
+  Result->setSemanticForm(Semantic);
   return Result;
 }
 

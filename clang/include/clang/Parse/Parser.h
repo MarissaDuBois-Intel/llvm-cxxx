@@ -7562,6 +7562,7 @@ public:
   ///
   StmtResult ParseIfStatement(SourceLocation *TrailingElseLoc,
                               bool IsElseIf = false);
+  StmtResult ParseWhenStatement();
 
   /// ParseSwitchStatement
   /// \verbatim

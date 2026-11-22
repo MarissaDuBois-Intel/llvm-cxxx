@@ -237,6 +237,24 @@ void ASTStmtWriter::VisitIfStmt(IfStmt *S) {
   Code = serialization::STMT_IF;
 }
 
+void ASTStmtWriter::VisitWhenStmt(WhenStmt *S) {
+  VisitStmt(S);
+  Record.push_back(S->getNumCases());
+  Record.AddStmt(S->getCond());
+  for (unsigned I = 0; I < S->getNumCases(); ++I) {
+    Record.push_back(static_cast<unsigned>(S->getCaseKind(I)));
+    Record.AddSourceLocation(S->getCaseLoc(I));
+    Record.AddStmt(S->getCaseBody(I));
+  }
+  Record.AddStmt(S->getSemanticForm());
+  Record.AddSourceLocation(S->getWhenLoc());
+  Record.AddSourceLocation(S->getLParenLoc());
+  Record.AddSourceLocation(S->getRParenLoc());
+  Record.AddSourceLocation(S->getLBraceLoc());
+  Record.AddSourceLocation(S->getRBraceLoc());
+  Code = serialization::STMT_WHEN;
+}
+
 void ASTStmtWriter::VisitSwitchStmt(SwitchStmt *S) {
   VisitStmt(S);
 

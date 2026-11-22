@@ -27,5 +27,5 @@ static_assert((from_header == other) == header_other_equal);
 static_assert((from_header < false) == header_other_ordered);
 static_assert((from_header < -1) == header_mixed_ordered);
 static_assert(static_cast<int>(from_header) == -1);
-Trine from_pch = true;
+trine from_pch = true;
 #endif
