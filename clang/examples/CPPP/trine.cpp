@@ -235,6 +235,145 @@ bool show_boolean_when() {
   return true;
 }
 
+bool show_unary_operators()
+{
+  puts("\nUnary logical operations (outputs for true, false, other):");
+  struct Example
+  {
+    const char *name;
+    trine (*operation)(trine);
+    int expected[3];
+  };
+
+  Example examples[] = {
+      {"identity", [](trine v) { return @<u:;identity> v; }, {1, 0, -1}},
+      {"constant true",
+       [](trine v) { return @<u:constant;constant;true> v; },
+       {1, 1, 1}},
+      {"constant false",
+       [](trine v) { return @<u:constant;constant;false> v; },
+       {0, 0, 0}},
+      {"constant other",
+       [](trine v) { return @<u:constant;constant;other> v; },
+       {-1, -1, -1}},
+      {"swap true-false",
+       [](trine v) {
+         return @<u:bijective,inverse;swap;true-false> v;
+       },
+       {0, 1, -1}},
+      {"swap true-other",
+       [](trine v) {
+         return @<u:bijective,inverse;swap;true-other> v;
+       },
+       {-1, 0, 1}},
+      {"swap false-other",
+       [](trine v) {
+         return @<u:bijective,inverse;swap;false-other> v;
+       },
+       {1, -1, 0}},
+      {"cycle forward",
+       [](trine v) {
+         return @<u:bijective,!fixed;cycle;forward> v;
+       },
+       {-1, 1, 0}},
+      {"cycle backward",
+       [](trine v) {
+         return @<u:bijective,!fixed;cycle;backward> v;
+       },
+       {0, -1, 1}},
+      {"collapse true-false",
+       [](trine v) { return @<u:idempotent;collapse;true-false> v; },
+       {0, 0, -1}},
+      {"collapse true-other",
+       [](trine v) { return @<u:idempotent;collapse;true-other> v; },
+       {-1, 0, -1}},
+      {"collapse false-true",
+       [](trine v) { return @<u:idempotent;collapse;false-true> v; },
+       {1, 1, -1}},
+      {"collapse false-other",
+       [](trine v) { return @<u:idempotent;collapse;false-other> v; },
+       {1, -1, -1}},
+      {"collapse other-true",
+       [](trine v) { return @<u:idempotent;collapse;other-true> v; },
+       {1, 0, 1}},
+      {"collapse other-false",
+       [](trine v) { return @<u:idempotent;collapse;other-false> v; },
+       {1, 0, 0}},
+      {"chain true-false",
+       [](trine v) { return @<u:fixed;chain;true-false> v; },
+       {1, 1, 0}},
+      {"chain true-other",
+       [](trine v) { return @<u:fixed;chain;true-other> v; },
+       {1, -1, 1}},
+      {"chain false-true",
+       [](trine v) { return @<u:fixed;chain;false-true> v; },
+       {0, 0, 1}},
+      {"chain false-other",
+       [](trine v) { return @<u:fixed;chain;false-other> v; },
+       {-1, 0, 0}},
+      {"chain other-true",
+       [](trine v) { return @<u:fixed;chain;other-true> v; },
+       {-1, 1, -1}},
+      {"chain other-false",
+       [](trine v) { return @<u:fixed;chain;other-false> v; },
+       {0, -1, -1}},
+      {"feed true-false-true",
+       [](trine v) {
+         return @<u:!bijective,!fixed;feed;true-false-true> v;
+       },
+       {0, 1, 1}},
+      {"feed true-false-false",
+       [](trine v) {
+         return @<u:!bijective,!fixed;feed;true-false-false> v;
+       },
+       {0, 1, 0}},
+      {"feed true-other-true",
+       [](trine v) {
+         return @<u:!bijective,!fixed;feed;true-other-true> v;
+       },
+       {-1, 1, 1}},
+      {"feed true-other-other",
+       [](trine v) {
+         return @<u:!bijective,!fixed;feed;true-other-other> v;
+       },
+       {-1, -1, 1}},
+      {"feed false-other-false",
+       [](trine v) {
+         return @<u:!bijective,!fixed;feed;false-other-false> v;
+       },
+       {0, -1, 0}},
+      {"feed false-other-other",
+       [](trine v) {
+         return @<u:!bijective,!fixed;feed;false-other-other> v;
+       },
+       {-1, -1, 0}},
+      {"identity with explicit other=other entry",
+       [](trine v) {
+         return @<u:bijective,idempotent;identity;;other=other> v;
+       },
+       {1, 0, -1}}};
+
+  trine inputs[] = {true, false, other};
+  for (const Example &example : examples)
+  {
+    printf("%s:", example.name);
+    for (int i = 0; i != 3; ++i)
+    {
+      int output = static_cast<int>(example.operation(inputs[i]));
+      printf(" %s", output == 1 ? "true" : output == 0 ? "false" : "other");
+      if (output != example.expected[i])
+        return false;
+    }
+    puts("");
+  }
+
+  int checks = 0;
+  trine result = @<u:constant;constant;true> checked_state(other, checks);
+  printf("Constant operation: result %d, operand evaluations %d\n",
+         static_cast<int>(result), checks);
+  return static_cast<int>(result) == 1 && checks == 1;
+}
+
 int main() 
 {
   trine value = false;
@@ -289,6 +428,7 @@ int main()
   if(!show_when()) return 1;
   if(!show_when_chains()) return 1;
   if(!show_boolean_when()) return 1;
+  if(!show_unary_operators()) return 1;
 
   puts("Press Enter to exit.");
   char c;

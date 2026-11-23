@@ -655,6 +655,24 @@ public:
   Value *VisitMatrixSubscriptExpr(MatrixSubscriptExpr *E);
   Value *VisitShuffleVectorExpr(ShuffleVectorExpr *E);
   Value *VisitConvertVectorExpr(ConvertVectorExpr *E);
+  Value *VisitTrineUnaryExpr(TrineUnaryExpr *E) {
+    Value *Input = Visit(E->getSubExpr());
+    auto Result = [&](TrineState State) {
+      return llvm::ConstantInt::get(
+          Input->getType(),
+          trineStateValue(trineUnaryOutput(E->getDescriptor().getTable(), State)),
+          /*isSigned=*/true);
+    };
+    Value *IsTrue =
+        Builder.CreateICmpEQ(Input, llvm::ConstantInt::get(Input->getType(), 1));
+    Value *IsFalse =
+        Builder.CreateICmpEQ(Input, llvm::ConstantInt::get(Input->getType(), 0));
+    return Builder.CreateSelect(
+        IsTrue, Result(TrineState::True),
+        Builder.CreateSelect(IsFalse, Result(TrineState::False),
+                             Result(TrineState::Other)),
+        "trine.unary");
+  }
   Value *VisitMemberExpr(MemberExpr *E);
   Value *VisitExtVectorElementExpr(Expr *E) { return EmitLoadOfLValue(E); }
   Value *VisitMatrixElementExpr(Expr *E) { return EmitLoadOfLValue(E); }

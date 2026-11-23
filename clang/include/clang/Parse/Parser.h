@@ -5938,6 +5938,7 @@ private:
 
   //===--------------------------------------------------------------------===//
   // Objective-C Expressions
+  ExprResult ParseTrineUnaryExpression(SourceLocation AtLocation);
   ExprResult ParseObjCAtExpression(SourceLocation AtLocation);
   ExprResult ParseObjCStringLiteral(SourceLocation AtLoc);
 

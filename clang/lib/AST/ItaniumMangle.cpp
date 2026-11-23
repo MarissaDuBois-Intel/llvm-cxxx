@@ -5653,6 +5653,16 @@ recurse:
     break;
   }
 
+  case Expr::TrineUnaryExprClass: {
+    NotPrimaryExpr();
+    const auto *U = cast<TrineUnaryExpr>(E);
+    std::string Name =
+        "__cxxx_trine_unary_" + std::to_string(U->getDescriptor().getTable());
+    Out << "v1" << Name.size() << Name;
+    mangleExpression(U->getSubExpr());
+    break;
+  }
+
   case Expr::ArraySubscriptExprClass: {
     NotPrimaryExpr();
     const ArraySubscriptExpr *AE = cast<ArraySubscriptExpr>(E);

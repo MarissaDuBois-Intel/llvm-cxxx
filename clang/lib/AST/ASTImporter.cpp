@@ -634,6 +634,7 @@ namespace clang {
     ExpectedStmt VisitVAArgExpr(VAArgExpr *E);
     ExpectedStmt VisitChooseExpr(ChooseExpr *E);
     ExpectedStmt VisitConvertVectorExpr(ConvertVectorExpr *E);
+    ExpectedStmt VisitTrineUnaryExpr(TrineUnaryExpr *E);
     ExpectedStmt VisitShuffleVectorExpr(ShuffleVectorExpr *E);
     ExpectedStmt VisitGNUNullExpr(GNUNullExpr *E);
     ExpectedStmt VisitGenericSelectionExpr(GenericSelectionExpr *E);
@@ -7762,6 +7763,18 @@ ExpectedStmt ASTNodeImporter::VisitConvertVectorExpr(ConvertVectorExpr *E) {
       Importer.getToContext(), ToSrcExpr, ToTSI, ToType, E->getValueKind(),
       E->getObjectKind(), ToBuiltinLoc, ToRParenLoc,
       E->getStoredFPFeaturesOrDefault());
+}
+
+ExpectedStmt ASTNodeImporter::VisitTrineUnaryExpr(TrineUnaryExpr *E) {
+  Error Err = Error::success();
+  auto *Operand = importChecked(Err, E->getSubExpr());
+  auto AtLoc = importChecked(Err, E->getBeginLoc());
+  auto RAngleLoc = importChecked(Err, E->getRAngleLoc());
+  auto Type = importChecked(Err, E->getType());
+  if (Err)
+    return std::move(Err);
+  return new (Importer.getToContext())
+      TrineUnaryExpr(Type, AtLoc, RAngleLoc, E->getDescriptor(), Operand);
 }
 
 ExpectedStmt ASTNodeImporter::VisitShuffleVectorExpr(ShuffleVectorExpr *E) {

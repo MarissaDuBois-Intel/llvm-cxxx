@@ -908,6 +908,12 @@ def CmpTrine : Opcode {
   let Args = [ArgExpr, ArgCCI];
 }
 
+def TrineUnary : Opcode {
+  let Types = [IntegerTypeClass];
+  let HasGroup = 1;
+  let Args = [ArgExpr];
+}
+
 class ComparisonOpcode : Opcode {
   let Types = [ComparableTypeClass];
   let HasGroup = 1;

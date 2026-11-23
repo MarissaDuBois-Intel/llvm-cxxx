@@ -2079,6 +2079,43 @@ void StmtPrinter::VisitConvertVectorExpr(ConvertVectorExpr *Node) {
   OS << ")";
 }
 
+void StmtPrinter::VisitTrineUnaryExpr(TrineUnaryExpr *Node) {
+  auto D = Node->getDescriptor();
+  const auto &Base = TrineUnaryDefinitions[D.Base];
+  OS << "@<u:";
+  bool First = true;
+  for (unsigned I = 0; I != TrineUnaryPropertyNames.size(); ++I) {
+    if (!((D.Required | D.Forbidden) & (1u << I)))
+      continue;
+    if (!First)
+      OS << ',';
+    First = false;
+    if (D.Forbidden & (1u << I))
+      OS << '!';
+    OS << TrineUnaryPropertyNames[I];
+  }
+  OS << ';' << Base.Family;
+  if (*Base.Policy || D.Entries)
+    OS << ';' << Base.Policy;
+  if (D.Entries) {
+    OS << ';';
+    First = true;
+    for (unsigned I = 0; I != 3; ++I) {
+      if (!(D.Entries & (1u << I)))
+        continue;
+      if (!First)
+        OS << ',';
+      First = false;
+      OS << TrineStateNames[I] << '='
+         << TrineStateNames[unsigned(
+                trineUnaryOutput(D.getTable(), TrineState(I)))];
+    }
+  }
+  OS << ">(";
+  PrintExpr(Node->getSubExpr());
+  OS << ')';
+}
+
 void StmtPrinter::VisitInitListExpr(InitListExpr* Node) {
   if (Node->getSyntacticForm()) {
     Visit(Node->getSyntacticForm());

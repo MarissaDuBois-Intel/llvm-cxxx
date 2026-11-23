@@ -94,6 +94,124 @@ void test(trine value) {
   // warning-warning@-1 {{trine condition has no 'otherwise' handler}}
 }
 
+#elif defined(CASE_UNARY_CONSTANT)
+auto value = @<u:constant;identity> other;
+// expected-error@-1 {{does not satisfy property 'constant'}}
+
+#elif defined(CASE_UNARY_BIJECTIVE)
+auto value = @<u:bijective;constant;true> other;
+// expected-error@-1 {{does not satisfy property 'bijective'}}
+
+#elif defined(CASE_UNARY_SELF_INVERSE)
+auto value = @<u:inverse;cycle;forward> other;
+// expected-error@-1 {{does not satisfy property 'inverse'}}
+
+#elif defined(CASE_UNARY_IDEMPOTENT)
+auto value = @<u:idempotent;swap;true-false> other;
+// expected-error@-1 {{does not satisfy property 'idempotent'}}
+
+#elif defined(CASE_UNARY_FIXED_POINT)
+auto value = @<u:fixed;feed;true-false-true> other;
+// expected-error@-1 {{does not satisfy property 'fixed'}}
+
+#elif defined(CASE_UNARY_NOT_CONSTANT)
+auto value = @<u:!constant;constant;other> other;
+// expected-error@-1 {{does not satisfy property '!constant'}}
+
+#elif defined(CASE_UNARY_NOT_BIJECTIVE)
+auto value = @<u:!bijective;identity> other;
+// expected-error@-1 {{does not satisfy property '!bijective'}}
+
+#elif defined(CASE_UNARY_NOT_SELF_INVERSE)
+auto value = @<u:!inverse;identity> other;
+// expected-error@-1 {{does not satisfy property '!inverse'}}
+
+#elif defined(CASE_UNARY_NOT_IDEMPOTENT)
+auto value = @<u:!idempotent;collapse;other-false> other;
+// expected-error@-1 {{does not satisfy property '!idempotent'}}
+
+#elif defined(CASE_UNARY_NO_FIXED_POINT)
+auto value = @<u:!fixed;constant;false> other;
+// expected-error@-1 {{does not satisfy property '!fixed'}}
+
+#elif defined(CASE_UNARY_ENTRY_CONFLICT)
+auto value = @<u:;identity;;other=false> other;
+// expected-error@-1 {{entry 'other=false' conflicts with selected truth table (expected 'other=other')}}
+
+#elif defined(CASE_UNARY_UNKNOWN_PROPERTY)
+auto value = @<u:commutative;identity> other;
+// expected-error@-1 {{unknown property 'commutative'}}
+
+#elif defined(CASE_UNARY_CONTRADICTION)
+auto value = @<u:bijective,!bijective;identity> other;
+// expected-error@-1 {{duplicate or contradictory property 'bijective'}}
+
+#elif defined(CASE_UNARY_FAMILY)
+auto value = @<u:;unknown> other;
+// expected-error@-1 {{unknown family 'unknown'}}
+
+#elif defined(CASE_UNARY_POLICY)
+auto value = @<u:;swap;forward> other;
+// expected-error@-1 {{invalid or missing policy 'forward' for family 'swap'}}
+
+#elif defined(CASE_UNARY_MISSING_POLICY)
+auto value = @<u:;constant> other;
+// expected-error@-1 {{invalid or missing policy '' for family 'constant'}}
+
+#elif defined(CASE_UNARY_DUPLICATE_ENTRY)
+auto value = @<u:;identity;;other=other,other=other> other;
+// expected-error@-1 {{duplicate explicit entry for 'other'}}
+
+#elif defined(CASE_UNARY_ENTRY_INPUT)
+auto value = @<u:;identity;;unknown=false> other;
+// expected-error@-1 {{expected an input state in explicit entry}}
+
+#elif defined(CASE_UNARY_ENTRY_OUTPUT)
+auto value = @<u:;identity;;other=unknown> other;
+// expected-error@-1 {{expected an output state in explicit entry}}
+
+#elif defined(CASE_UNARY_ENTRY_EQUAL)
+auto value = @<u:;identity;;other:false> other;
+// expected-error@-1 {{expected '=' in explicit entry}}
+
+#elif defined(CASE_UNARY_ARITY)
+auto value = @<x:;identity> other;
+// expected-error@-1 {{expected arity 'u'}}
+
+#elif defined(CASE_UNARY_BINARY)
+auto value = @<b:;identity> other;
+// expected-error@-1 {{binary logical operators are not implemented}}
+
+#elif defined(CASE_UNARY_COLON)
+auto value = @<u;identity> other;
+// expected-error@-1 {{expected ':' after arity}}
+
+#elif defined(CASE_UNARY_SEPARATOR)
+auto value = @<u:bijective identity> other;
+// expected-error@-1 {{expected ';' before family}}
+
+#elif defined(CASE_UNARY_INT)
+auto value = @<u:;identity> 1;
+// expected-error@-1 {{requires a bool or trine operand ('int' invalid)}}
+
+#elif defined(CASE_UNARY_CONVERTIBLE_BOOL)
+struct Convertible { operator bool(); };
+auto value = @<u:;identity> Convertible{};
+// expected-error@-1 {{requires a bool or trine operand ('Convertible' invalid)}}
+
+#elif defined(CASE_UNARY_CONVERTIBLE_TRINE)
+struct Convertible { operator trine(); };
+auto value = @<u:;identity> Convertible{};
+// expected-error@-1 {{requires a bool or trine operand ('Convertible' invalid)}}
+
+#elif defined(CASE_UNARY_TEMPLATE_INT)
+template <class T> trine select(T value) {
+  return @<u:;identity> value;
+  // expected-error@-1 {{requires a bool or trine operand ('int' invalid)}}
+}
+auto value = select(1);
+// expected-note@-1 {{in instantiation of function template specialization 'select<int>' requested here}}
+
 #else
 #error Select one diagnostic scenario with CASE_*.
 #endif

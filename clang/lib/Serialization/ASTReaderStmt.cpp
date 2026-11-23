@@ -1490,6 +1490,17 @@ void ASTStmtReader::VisitConvertVectorExpr(ConvertVectorExpr *E) {
         FPOptionsOverride::getFromOpaqueInt(Record.readInt()));
 }
 
+void ASTStmtReader::VisitTrineUnaryExpr(TrineUnaryExpr *E) {
+  VisitExpr(E);
+  E->Descriptor.Base = Record.readInt();
+  E->Descriptor.Required = Record.readInt();
+  E->Descriptor.Forbidden = Record.readInt();
+  E->Descriptor.Entries = Record.readInt();
+  E->AtLoc = readSourceLocation();
+  E->RAngleLoc = readSourceLocation();
+  E->Operand = Record.readSubExpr();
+}
+
 void ASTStmtReader::VisitBlockExpr(BlockExpr *E) {
   VisitExpr(E);
   E->setBlockDecl(readDeclAs<BlockDecl>());
@@ -3599,6 +3610,10 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
       S = ConvertVectorExpr::CreateEmpty(Context, HasFPFeatures);
       break;
     }
+
+    case EXPR_TRINE_UNARY:
+      S = new (Context) TrineUnaryExpr(Empty);
+      break;
 
     case EXPR_BLOCK:
       S = new (Context) BlockExpr(Empty);

@@ -16675,6 +16675,41 @@ static bool isOverflowingIntegerType(ASTContext &Ctx, QualType T) {
   return Ctx.getIntWidth(T) >= Ctx.getIntWidth(Ctx.IntTy);
 }
 
+ExprResult Sema::ActOnTrineUnaryExpr(
+    SourceLocation AtLoc, SourceLocation RAngleLoc,
+    TrineUnaryDescriptor Descriptor, Expr *Input,
+    ArrayRef<SourceLocation> PropertyLocs) {
+  unsigned Properties = trineUnaryProperties(Descriptor.getTable());
+  unsigned Failed = (Descriptor.Required & ~Properties) |
+                    (Descriptor.Forbidden & Properties);
+  if (Failed) {
+    for (unsigned I = 0; I != TrineUnaryPropertyNames.size(); ++I) {
+      if (!(Failed & (1u << I)))
+        continue;
+      std::string Name = (Descriptor.Forbidden & (1u << I)) ? "!" : "";
+      Name += TrineUnaryPropertyNames[I];
+      Diag(PropertyLocs.empty() ? AtLoc : PropertyLocs[I],
+           diag::err_trine_unary_property)
+          << Name;
+    }
+    return ExprError();
+  }
+  if (!Input->isTypeDependent()) {
+    QualType Ty = Input->getType();
+    if (!Ty->isTrineType() && !Ty->isBooleanType())
+      return ExprError(Diag(Input->getExprLoc(), diag::err_trine_unary_operand)
+                       << Ty << Input->getSourceRange());
+    ExprResult Converted = DefaultLvalueConversion(Input);
+    if (Converted.isInvalid())
+      return ExprError();
+    Input = Converted.get();
+    if (Ty->isBooleanType())
+      Input = ImpCastExprToType(Input, Context.TrineTy, CK_IntegralCast).get();
+  }
+  return new (Context)
+      TrineUnaryExpr(Context.TrineTy, AtLoc, RAngleLoc, Descriptor, Input);
+}
+
 ExprResult Sema::CreateBuiltinUnaryOp(SourceLocation OpLoc,
                                       UnaryOperatorKind Opc, Expr *InputExpr,
                                       bool IsAfterAmp) {

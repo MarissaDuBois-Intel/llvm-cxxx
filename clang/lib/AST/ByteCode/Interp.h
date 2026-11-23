@@ -1455,6 +1455,16 @@ bool EQ(InterpState &S, CodePtr OpPC) {
 }
 
 template <PrimType Name, class T = typename PrimConv<Name>::T>
+bool TrineUnary(InterpState &S, CodePtr OpPC, const Expr *E) {
+  auto Input = S.Stk.pop<T>();
+  auto Output = trineUnaryOutput(
+      cast<TrineUnaryExpr>(E)->getDescriptor().getTable(),
+      trineStateFromValue(Input.toAPSInt().getSExtValue()));
+  S.Stk.push<T>(T::from(trineStateValue(Output), Input.bitWidth()));
+  return true;
+}
+
+template <PrimType Name, class T = typename PrimConv<Name>::T>
 bool CmpTrine(InterpState &S, CodePtr OpPC, const Expr *E,
               const ComparisonCategoryInfo *CmpInfo) {
   const auto RHS = S.Stk.pop<T>();

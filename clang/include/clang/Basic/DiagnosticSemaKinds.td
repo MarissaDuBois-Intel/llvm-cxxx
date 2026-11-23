@@ -2272,6 +2272,12 @@ def err_not_integral_type_bitfield : Error<
   "bit-field %0 has non-integral type %1">;
 def err_trine_bitfield_too_small : Error<
   "a trine bit-field requires at least 2 bits">;
+def err_trine_unary_descriptor : Error<
+  "invalid unary logical operator: %0">;
+def err_trine_unary_property : Error<
+  "unary logical operator does not satisfy property '%0'">;
+def err_trine_unary_operand : Error<
+  "unary logical operator requires a bool or trine operand (%0 invalid)">;
 def err_not_integral_type_anon_bitfield : Error<
   "anonymous bit-field has non-integral type %0">;
 def err_anon_bitfield_qualifiers : Error<

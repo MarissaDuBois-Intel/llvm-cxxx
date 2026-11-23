@@ -114,6 +114,7 @@ struct InlineAsmIdentifierInfo;
 } // namespace llvm
 
 namespace clang {
+struct TrineUnaryDescriptor;
 class ADLResult;
 class APValue;
 class ASTConstraintSatisfaction;
@@ -7523,6 +7524,11 @@ public:
   /// Unary Operators.  'Tok' is the token for the operator.
   ExprResult ActOnUnaryOp(Scope *S, SourceLocation OpLoc, tok::TokenKind Op,
                           Expr *Input, bool IsAfterAmp = false);
+
+  ExprResult ActOnTrineUnaryExpr(
+      SourceLocation AtLoc, SourceLocation RAngleLoc,
+      TrineUnaryDescriptor Descriptor, Expr *Input,
+      ArrayRef<SourceLocation> PropertyLocs = {});
 
   /// Determine whether the given expression is a qualified member
   /// access expression, of a form that could be turned into a pointer to member

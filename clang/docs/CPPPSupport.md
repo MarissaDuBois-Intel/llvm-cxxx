@@ -72,7 +72,8 @@ Use `==` or `!=` to inspect a state, or explicitly convert it to `int` to read
 0, 1, or -1. Integer and pointer construction is rejected rather than silently
 converting arbitrary values to `bool`. There is no implicit conversion back
 to `bool` or `int`, so `if (state)` cannot accidentally collapse `other` into
-`true`. Arithmetic and logical operators on trines remain unsupported.
+`true`. Ordinary arithmetic and logical operators on trines remain unsupported;
+the unary truth-table operators below use their own explicit syntax.
 
 The old resource-header class implementation has been removed. Rebuild
 applications and precompiled headers made with that prototype: the native
@@ -149,6 +150,98 @@ evaluators and runtime code implement the same rules.
 
 Unordered mode is not suitable as the default comparator for sorting or ordered
 containers. Choose ordered mode or provide an explicit ordering policy instead.
+
+### Unary logical operators
+
+C+++ supports all 27 unary truth functions using a prefix operator descriptor:
+
+```cpp
+@<u:properties;family;policy;overrides> operand
+```
+
+The descriptor binds like an ordinary prefix unary operator. Its operand is a
+`trine` or a `bool` (using the built-in bool-to-trine conversion), and its result
+is a `trine` prvalue. Integers and class conversion operators are not accepted.
+The operand is evaluated exactly once, including for constant functions and
+discarded results. Normal full-expression temporary lifetimes, exceptions, and
+unevaluated contexts such as `sizeof` are preserved.
+
+Properties are optional, comma-separated compile-time assertions. Family is
+required; policy is required except for `identity`. Trailing empty fields may
+be omitted, but interior empty fields retain their semicolons:
+
+```cpp
+trine same = @<u:;identity> value;
+trine inverted = @<u:bijective,inverse;swap;true-false> value;
+trine rotated = @<u:bijective,!fixed;cycle;forward> value;
+trine known = @<u:!bijective,idempotent;collapse;other-false;other=false> value;
+```
+
+The catalog follows `trine-operators.xlsx`, with outputs ordered by inputs
+**true, false, other**:
+
+| Family | Policies | Outputs in T,F,O order |
+| --- | --- | --- |
+| `identity` | none | TFO |
+| `constant` | `true`, `false`, `other` | TTT, FFF, OOO |
+| `swap` | `true-false`, `true-other`, `false-other` | FTO, OFT, TOF |
+| `cycle` | `forward`, `backward` | OTF, FOT |
+| `collapse` | `true-false`, `true-other`, `false-true`, `false-other`, `other-true`, `other-false` | FFO, OFO, TTO, TOO, TFT, TFF |
+| `chain` | `true-false`, `true-other`, `false-true`, `false-other`, `other-true`, `other-false` | TTF, TOT, FFT, OFF, OTO, FOO |
+| `feed` | `true-false-true`, `true-false-false`, `true-other-true`, `true-other-other`, `false-other-false`, `false-other-other` | FTT, FTF, OTT, OOT, FOF, OOF |
+
+Each property describes the complete three-input map, even for a Boolean
+operand:
+
+| Property | Assertion |
+| --- | --- |
+| `constant` | All outputs are identical. |
+| `bijective` | All outputs are distinct. |
+| `inverse` | Applying the function twice restores every input (self-inverse). |
+| `idempotent` | Applying the function twice equals applying it once. |
+| `fixed` | At least one input maps to itself. |
+
+Prefix `!` negates the entire property: `!fixed` means there are no
+fixed points. Multiple assertions must all hold. Unknown names, duplicate or
+contradictory properties, and unsatisfied assertions are errors.
+
+The final field explicitly addresses existing truth-table entries using
+comma-separated `input=output` assertions with `true`, `false`, and `other`.
+Despite the field's original name, `overrides`, these **never redefine outputs**
+or assign to the operand. Each entry must match the selected family/policy.
+Conflicting entries and repeated input rows are errors, even when properties
+are omitted. There are exactly 27 fixed operators; properties and explicit
+entries describe the selected operator, not a modified table:
+
+```cpp
+trine same = @<u:bijective;identity;;other=other> value;
+trine known = @<u:idempotent;collapse;other-false;other=false> value;
+```
+
+These operations and property checks use state identity, independent of the
+`other` comparison flags. They work in constant evaluation and templates.
+Ordinary `!`, `~`, arithmetic, and `if`/`when` semantics are unchanged. The `b`
+arity is reserved and currently diagnosed as unsupported.
+
+`@<` introduces a logical descriptor, not a C++ template argument list.
+Hyphenated names are contextual and do not add global keywords. However, the
+preprocessor does not treat angle brackets as grouping: wrap the **whole
+expression** in parentheses when passing a descriptor containing commas to a
+macro:
+
+```cpp
+#define ID(expression) expression
+trine result = ID((@<u:bijective,inverse;swap;true-false> value));
+```
+
+No Excel installation is needed to build or run these operators. IntelliSense
+property filtering is not yet implemented.
+
+The demo includes a written example of each of the 27 operators, prints its
+three outputs, and checks them against the expected table. It also demonstrates
+a matching explicit entry and evaluation of a side-effecting operand by a
+constant operator. Invalid snippets are confined to separate compiler diagnostic
+tests, not compiled as part of the demo.
 
 ### Three-way `if` and `else if` chains
 
@@ -472,7 +565,12 @@ the startup project, or use:
 ```powershell
 .\build-cppp\trine-vs\Debug\trine-tests.exe --gtest_list_tests
 .\build-cppp\trine-vs\Debug\trine-tests.exe --gtest_filter="When*.*"
+.\build-cppp\trine-vs\Debug\trine-tests.exe --gtest_filter="TrineUnary*"
 ```
+
+The `TrineUnary*` filter runs only valid unary cases, including all 27 operators
+on each input, constexpr evaluation, matching assertions, and evaluation rules.
+It excludes the separate compiler-diagnostic tests.
 
 CTest discovers the cases individually. Visual Studio Test Explorer can also
 run the executable when its Google Test adapter is installed; CTest and direct

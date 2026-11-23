@@ -18044,6 +18044,17 @@ TreeTransform<Derived>::TransformConvertVectorExpr(ConvertVectorExpr *E) {
                                                E->getRParenLoc());
 }
 
+template <typename Derived>
+ExprResult TreeTransform<Derived>::TransformTrineUnaryExpr(TrineUnaryExpr *E) {
+  ExprResult Operand = getDerived().TransformExpr(E->getSubExpr());
+  if (Operand.isInvalid())
+    return ExprError();
+  if (!getDerived().AlwaysRebuild() && Operand.get() == E->getSubExpr())
+    return E;
+  return SemaRef.ActOnTrineUnaryExpr(E->getBeginLoc(), E->getRAngleLoc(),
+                                    E->getDescriptor(), Operand.get());
+}
+
 template<typename Derived>
 ExprResult
 TreeTransform<Derived>::TransformBlockExpr(BlockExpr *E) {

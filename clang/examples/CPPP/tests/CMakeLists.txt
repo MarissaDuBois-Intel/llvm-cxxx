@@ -13,11 +13,17 @@ set(cxxx_test_sources
   TrineTests.cpp
   ComparisonTests.cpp
   IfTests.cpp
-  WhenTests.cpp)
+  WhenTests.cpp
+  UnaryTests.cpp)
 set(cxxx_test_objects)
 foreach(source IN LISTS cxxx_test_sources)
   get_filename_component(stem "${source}" NAME_WE)
   set(object "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${stem}.obj")
+  set(dependencies "${source}" TestSupport.h "${CXXX_CLANG}"
+                   "${CMAKE_BINARY_DIR}/CMakeCache.txt")
+  if(source STREQUAL "UnaryTests.cpp")
+    list(APPEND dependencies UnaryCases.def)
+  endif()
   add_custom_command(
     OUTPUT "${object}"
     COMMAND "${CMAKE_COMMAND}" -E make_directory
@@ -28,8 +34,7 @@ foreach(source IN LISTS cxxx_test_sources)
             "-DCXXX_TEST_OTHER_EQUAL=$<BOOL:${CXXX_TRINE_OTHER_EQUAL}>"
             "-DCXXX_TEST_OTHER_ORDERED=$<BOOL:${CXXX_TRINE_OTHER_ORDERED}>"
             -c "${CMAKE_CURRENT_SOURCE_DIR}/${source}" -o "${object}"
-    DEPENDS "${source}" TestSupport.h "${CXXX_CLANG}"
-            "${CMAKE_BINARY_DIR}/CMakeCache.txt"
+    DEPENDS ${dependencies}
     COMMENT "Compiling ${source} as C+++"
     VERBATIM)
   list(APPEND cxxx_test_objects "${object}")
@@ -37,11 +42,11 @@ endforeach()
 
 set_source_files_properties(${cxxx_test_objects}
   PROPERTIES GENERATED TRUE EXTERNAL_OBJECT TRUE)
-set_source_files_properties(${cxxx_test_sources} DiagnosticInputs.cpp
+set_source_files_properties(${cxxx_test_sources} DiagnosticInputs.cpp UnaryCases.def
   PROPERTIES HEADER_FILE_ONLY TRUE)
 
 add_executable(trine-tests
-  TestMain.cpp DiagnosticTests.cpp DiagnosticInputs.cpp TestSupport.h
+  TestMain.cpp DiagnosticTests.cpp DiagnosticInputs.cpp TestSupport.h UnaryCases.def
   ${cxxx_test_sources} ${cxxx_test_objects})
 target_link_libraries(trine-tests PRIVATE cxxx-gtest)
 target_compile_definitions(trine-tests PRIVATE

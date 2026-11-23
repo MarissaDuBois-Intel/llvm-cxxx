@@ -3453,3 +3453,14 @@ void TextNodeDumper::VisitConvertVectorExpr(const ConvertVectorExpr *S) {
   if (S->hasStoredFPFeatures())
     printFPOptions(S->getStoredFPFeatures());
 }
+
+void TextNodeDumper::VisitTrineUnaryExpr(const TrineUnaryExpr *S) {
+  auto D = S->getDescriptor();
+  const auto &Base = TrineUnaryDefinitions[D.Base];
+  OS << ' ' << Base.Family;
+  if (*Base.Policy)
+    OS << ' ' << Base.Policy;
+  OS << " TFO=";
+  for (unsigned I = 0; I != 3; ++I)
+    OS << "TFO"[unsigned(trineUnaryOutput(D.getTable(), TrineState(I)))];
+}

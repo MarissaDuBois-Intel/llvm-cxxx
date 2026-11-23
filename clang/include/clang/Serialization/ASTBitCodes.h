@@ -2115,6 +2115,7 @@ enum StmtCode {
 
   STMT_DEFER,
   STMT_WHEN,
+  EXPR_TRINE_UNARY,
 };
 
 /// The kinds of designators that can occur in a

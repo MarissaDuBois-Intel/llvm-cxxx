@@ -170,6 +170,7 @@ public:
   bool VisitGNUNullExpr(const GNUNullExpr *E);
   bool VisitCXXThisExpr(const CXXThisExpr *E);
   bool VisitUnaryOperator(const UnaryOperator *E);
+  bool VisitTrineUnaryExpr(const TrineUnaryExpr *E);
   bool VisitVectorUnaryOperator(const UnaryOperator *E);
   bool VisitComplexUnaryOperator(const UnaryOperator *E);
   bool VisitDeclRefExpr(const DeclRefExpr *E);

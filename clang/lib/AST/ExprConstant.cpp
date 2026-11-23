@@ -16325,6 +16325,14 @@ public:
   bool VisitIntegerLiteral(const IntegerLiteral *E) {
     return Success(E->getValue(), E);
   }
+  bool VisitTrineUnaryExpr(const TrineUnaryExpr *E) {
+    APSInt Input;
+    if (!EvaluateInteger(E->getSubExpr(), Input, Info))
+      return false;
+    auto Output = trineUnaryOutput(
+        E->getDescriptor().getTable(), trineStateFromValue(Input.getSExtValue()));
+    return Success(uint64_t(trineStateValue(Output)), E);
+  }
   bool VisitCharacterLiteral(const CharacterLiteral *E) {
     return Success(E->getValue(), E);
   }
@@ -23162,6 +23170,9 @@ static ICEDiag CheckICE(const Expr* E, const ASTContext &Ctx) {
   case Expr::HLSLOutArgExprClass:
   case Expr::CXXExpansionSelectExprClass:
     return ICEDiag(IK_NotICE, E->getBeginLoc());
+
+  case Expr::TrineUnaryExprClass:
+    return CheckICE(cast<TrineUnaryExpr>(E)->getSubExpr(), Ctx);
 
   case Expr::MemberExprClass: {
     if (Ctx.getLangOpts().C23) {

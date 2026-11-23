@@ -444,6 +444,7 @@ public:
   void VisitEmbedExpr(const EmbedExpr *S);
   void VisitAtomicExpr(const AtomicExpr *AE);
   void VisitConvertVectorExpr(const ConvertVectorExpr *S);
+  void VisitTrineUnaryExpr(const TrineUnaryExpr *S);
 };
 
 } // namespace clang

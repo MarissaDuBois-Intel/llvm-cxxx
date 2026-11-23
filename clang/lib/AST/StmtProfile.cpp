@@ -1693,6 +1693,11 @@ void StmtProfiler::VisitConvertVectorExpr(const ConvertVectorExpr *S) {
   VisitExpr(S);
 }
 
+void StmtProfiler::VisitTrineUnaryExpr(const TrineUnaryExpr *S) {
+  VisitExpr(S);
+  ID.AddInteger(S->getDescriptor().getTable());
+}
+
 void StmtProfiler::VisitChooseExpr(const ChooseExpr *S) {
   VisitExpr(S);
 }

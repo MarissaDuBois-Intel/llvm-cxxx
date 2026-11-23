@@ -1481,6 +1481,19 @@ void ASTStmtWriter::VisitConvertVectorExpr(ConvertVectorExpr *E) {
     Record.push_back(E->getStoredFPFeatures().getAsOpaqueInt());
 }
 
+void ASTStmtWriter::VisitTrineUnaryExpr(TrineUnaryExpr *E) {
+  VisitExpr(E);
+  auto D = E->getDescriptor();
+  Record.push_back(D.Base);
+  Record.push_back(D.Required);
+  Record.push_back(D.Forbidden);
+  Record.push_back(D.Entries);
+  Record.AddSourceLocation(E->getBeginLoc());
+  Record.AddSourceLocation(E->getRAngleLoc());
+  Record.AddStmt(E->getSubExpr());
+  Code = serialization::EXPR_TRINE_UNARY;
+}
+
 void ASTStmtWriter::VisitBlockExpr(BlockExpr *E) {
   VisitExpr(E);
   Record.AddDeclRef(E->getBlockDecl());

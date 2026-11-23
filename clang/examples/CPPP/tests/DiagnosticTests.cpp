@@ -113,4 +113,39 @@ TEST(CompilerDiagnostics, MissingOtherwiseWarningCanBeEnabled) {
   EXPECT_EQ(0, compile("CASE_MISSING_OTHERWISE", "warning",
                        {"-Wtrine-missing-otherwise"}));
 }
+
+#define UNARY_DIAGNOSTIC(Name, Selector)                                       \
+  TEST(UnaryDiagnostics, Name) { EXPECT_EQ(0, compile(#Selector)); }
+
+UNARY_DIAGNOSTIC(RejectsFalseConstantAssertion, CASE_UNARY_CONSTANT)
+UNARY_DIAGNOSTIC(RejectsFalseBijectiveAssertion, CASE_UNARY_BIJECTIVE)
+UNARY_DIAGNOSTIC(RejectsFalseSelfInverseAssertion, CASE_UNARY_SELF_INVERSE)
+UNARY_DIAGNOSTIC(RejectsFalseIdempotentAssertion, CASE_UNARY_IDEMPOTENT)
+UNARY_DIAGNOSTIC(RejectsFalseFixedPointAssertion, CASE_UNARY_FIXED_POINT)
+UNARY_DIAGNOSTIC(RejectsFalseNotConstantAssertion, CASE_UNARY_NOT_CONSTANT)
+UNARY_DIAGNOSTIC(RejectsFalseNotBijectiveAssertion, CASE_UNARY_NOT_BIJECTIVE)
+UNARY_DIAGNOSTIC(RejectsFalseNotSelfInverseAssertion,
+                 CASE_UNARY_NOT_SELF_INVERSE)
+UNARY_DIAGNOSTIC(RejectsFalseNotIdempotentAssertion, CASE_UNARY_NOT_IDEMPOTENT)
+UNARY_DIAGNOSTIC(RejectsFalseNoFixedPointAssertion, CASE_UNARY_NO_FIXED_POINT)
+UNARY_DIAGNOSTIC(RejectsConflictingEntry, CASE_UNARY_ENTRY_CONFLICT)
+UNARY_DIAGNOSTIC(RejectsUnknownProperty, CASE_UNARY_UNKNOWN_PROPERTY)
+UNARY_DIAGNOSTIC(RejectsContradictoryProperties, CASE_UNARY_CONTRADICTION)
+UNARY_DIAGNOSTIC(RejectsUnknownFamily, CASE_UNARY_FAMILY)
+UNARY_DIAGNOSTIC(RejectsPolicyFromAnotherFamily, CASE_UNARY_POLICY)
+UNARY_DIAGNOSTIC(RejectsMissingPolicy, CASE_UNARY_MISSING_POLICY)
+UNARY_DIAGNOSTIC(RejectsDuplicateEntry, CASE_UNARY_DUPLICATE_ENTRY)
+UNARY_DIAGNOSTIC(RejectsUnknownEntryInput, CASE_UNARY_ENTRY_INPUT)
+UNARY_DIAGNOSTIC(RejectsUnknownEntryOutput, CASE_UNARY_ENTRY_OUTPUT)
+UNARY_DIAGNOSTIC(RequiresEqualsInEntry, CASE_UNARY_ENTRY_EQUAL)
+UNARY_DIAGNOSTIC(RejectsUnknownArity, CASE_UNARY_ARITY)
+UNARY_DIAGNOSTIC(ReservesBinaryArity, CASE_UNARY_BINARY)
+UNARY_DIAGNOSTIC(RequiresArityColon, CASE_UNARY_COLON)
+UNARY_DIAGNOSTIC(RequiresFamilySeparator, CASE_UNARY_SEPARATOR)
+UNARY_DIAGNOSTIC(RejectsIntegerOperand, CASE_UNARY_INT)
+UNARY_DIAGNOSTIC(RejectsClassConvertibleToBool, CASE_UNARY_CONVERTIBLE_BOOL)
+UNARY_DIAGNOSTIC(RejectsClassConvertibleToTrine, CASE_UNARY_CONVERTIBLE_TRINE)
+UNARY_DIAGNOSTIC(ChecksInstantiatedOperandType, CASE_UNARY_TEMPLATE_INT)
+
+#undef UNARY_DIAGNOSTIC
 } // namespace

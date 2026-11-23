@@ -28,6 +28,7 @@
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/SyncScope.h"
+#include "clang/Basic/TrineOperators.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/SmallVector.h"
@@ -2244,6 +2245,37 @@ public:
   // Get the generated name of the type.  Note that this only works after all
   // kernels have been instantiated.
   static std::string ComputeName(ASTContext &Context, QualType Ty);
+};
+
+class TrineUnaryExpr final : public Expr {
+  friend class ASTStmtReader;
+  SourceLocation AtLoc, RAngleLoc;
+  Stmt *Operand = nullptr;
+  TrineUnaryDescriptor Descriptor;
+
+public:
+  TrineUnaryExpr(QualType Ty, SourceLocation AtLoc, SourceLocation RAngleLoc,
+                 TrineUnaryDescriptor Descriptor, Expr *Operand)
+      : Expr(TrineUnaryExprClass, Ty, VK_PRValue, OK_Ordinary), AtLoc(AtLoc),
+        RAngleLoc(RAngleLoc), Operand(Operand), Descriptor(Descriptor) {
+    setDependence(turnTypeToValueDependence(Operand->getDependence()));
+  }
+  explicit TrineUnaryExpr(EmptyShell Empty) : Expr(TrineUnaryExprClass, Empty) {}
+
+  Expr *getSubExpr() { return cast<Expr>(Operand); }
+  const Expr *getSubExpr() const { return cast<Expr>(Operand); }
+  TrineUnaryDescriptor getDescriptor() const { return Descriptor; }
+  SourceLocation getBeginLoc() const { return AtLoc; }
+  SourceLocation getEndLoc() const { return getSubExpr()->getEndLoc(); }
+  SourceLocation getRAngleLoc() const { return RAngleLoc; }
+
+  static bool classof(const Stmt *S) {
+    return S->getStmtClass() == TrineUnaryExprClass;
+  }
+  child_range children() { return child_range(&Operand, &Operand + 1); }
+  const_child_range children() const {
+    return const_child_range(&Operand, &Operand + 1);
+  }
 };
 
 /// ParenExpr - This represents a parenthesized expression, e.g. "(1)".  This

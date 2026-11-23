@@ -4544,6 +4544,10 @@ LexStart:
     break;
 
   case '@':
+    if (CurPtr[-1] == '@' && LangOpts.CPlusPlusPlus) {
+      Kind = tok::at;
+      break;
+    }
     // Objective C support.
     if (CurPtr[-1] == '@' && LangOpts.ObjC) {
       FormTokenWithChars(Result, CurPtr, tok::at);

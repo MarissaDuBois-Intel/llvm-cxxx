@@ -381,6 +381,10 @@ class StmtComparer {
     return E1->getOpcode() == E2->getOpcode();
   }
 
+  bool IsStmtEquivalent(const TrineUnaryExpr *E1, const TrineUnaryExpr *E2) {
+    return E1->getDescriptor().getTable() == E2->getDescriptor().getTable();
+  }
+
   bool IsStmtEquivalent(const VAArgExpr *E1, const VAArgExpr *E2) {
     // Semantics only depend on children.
     return true;

@@ -24,6 +24,7 @@
 #include "clang/AST/Availability.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/LocInfoType.h"
+#include "clang/Basic/DiagnosticSema.h"
 #include "clang/Basic/PrettyStackTrace.h"
 #include "clang/Lex/LiteralSupport.h"
 #include "clang/Parse/Parser.h"
@@ -40,8 +41,136 @@
 #include "clang/Sema/SemaSYCL.h"
 #include "clang/Sema/TypoCorrection.h"
 #include "llvm/ADT/SmallVector.h"
+#include <iterator>
 #include <optional>
 using namespace clang;
+
+ExprResult Parser::ParseTrineUnaryExpression(SourceLocation AtLoc) {
+  ConsumeToken(); // '<'
+  auto Fail = [&](SourceLocation Loc,
+                  const std::string &Message) -> ExprResult {
+    Diag(Loc, diag::err_trine_unary_descriptor) << Message;
+    SkipUntil(tok::greater, tok::r_brace, StopBeforeMatch);
+    if (TryConsumeToken(tok::greater))
+      ParseCastExpression(CastParseKind::AnyCastExpr);
+    return ExprError();
+  };
+  auto IsName = [&] {
+    return Tok.isOneOf(tok::identifier, tok::kw_true, tok::kw_false,
+                       tok::kw_other);
+  };
+  auto ReadName = [&]() -> std::string {
+    if (!IsName())
+      return {};
+    std::string Name = PP.getSpelling(Tok);
+    ConsumeToken();
+    while (TryConsumeToken(tok::minus)) {
+      if (!IsName())
+        return {};
+      Name += "-" + PP.getSpelling(Tok);
+      ConsumeToken();
+    }
+    return Name;
+  };
+  SourceLocation ArityLoc = Tok.getLocation();
+  std::string Arity = ReadName();
+  if (Arity != "u")
+    return Fail(ArityLoc, Arity == "b"
+                              ? "binary logical operators are not implemented"
+                              : "expected arity 'u'");
+  if (!TryConsumeToken(tok::colon))
+    return Fail(Tok.getLocation(), "expected ':' after arity");
+
+  TrineUnaryDescriptor Descriptor;
+  std::array<SourceLocation, 5> PropertyLocs;
+  if (Tok.isNot(tok::semi)) {
+    do {
+      SourceLocation Loc = Tok.getLocation();
+      bool Negated = TryConsumeToken(tok::exclaim);
+      std::string Name = ReadName();
+      unsigned I = 0;
+      for (; I != TrineUnaryPropertyNames.size(); ++I)
+        if (Name == TrineUnaryPropertyNames[I])
+          break;
+      if (I == TrineUnaryPropertyNames.size())
+        return Fail(Loc, "unknown property '" + Name + "'");
+      unsigned Mask = 1u << I;
+      if ((Descriptor.Required | Descriptor.Forbidden) & Mask)
+        return Fail(Loc, "duplicate or contradictory property '" + Name + "'");
+      (Negated ? Descriptor.Forbidden : Descriptor.Required) |= Mask;
+      PropertyLocs[I] = Loc;
+    } while (TryConsumeToken(tok::comma));
+  }
+  if (!TryConsumeToken(tok::semi))
+    return Fail(Tok.getLocation(), "expected ';' before family");
+  SourceLocation FamilyLoc = Tok.getLocation();
+  std::string Family = ReadName();
+  std::string Policy;
+  if (TryConsumeToken(tok::semi) && !Tok.isOneOf(tok::semi, tok::greater))
+    Policy = ReadName();
+
+  bool KnownFamily = false, Found = false;
+  for (unsigned I = 0; I != std::size(TrineUnaryDefinitions); ++I) {
+    const auto &Def = TrineUnaryDefinitions[I];
+    if (Family != Def.Family)
+      continue;
+    KnownFamily = true;
+    if (Policy == Def.Policy) {
+      Descriptor.Base = I;
+      Found = true;
+      break;
+    }
+  }
+  if (!Found)
+    return Fail(FamilyLoc, KnownFamily
+                               ? "invalid or missing policy '" + Policy +
+                                     "' for family '" + Family + "'"
+                               : "unknown family '" + Family + "'");
+
+  auto ReadState = [&]() -> std::optional<TrineState> {
+    std::string Name = ReadName();
+    for (unsigned I = 0; I != TrineStateNames.size(); ++I)
+      if (Name == TrineStateNames[I])
+        return TrineState(I);
+    return std::nullopt;
+  };
+  if (TryConsumeToken(tok::semi) && Tok.isNot(tok::greater)) {
+    do {
+      SourceLocation Loc = Tok.getLocation();
+      auto Input = ReadState();
+      if (!Input)
+        return Fail(Loc, "expected an input state in explicit entry");
+      if (Descriptor.Entries & (1u << unsigned(*Input)))
+        return Fail(Loc, "duplicate explicit entry for '" +
+                             std::string(TrineStateNames[unsigned(*Input)]) +
+                             "'");
+      if (!TryConsumeToken(tok::equal))
+        return Fail(Tok.getLocation(), "expected '=' in explicit entry");
+      auto Output = ReadState();
+      if (!Output)
+        return Fail(Tok.getLocation(),
+                    "expected an output state in explicit entry");
+      TrineState Expected = trineUnaryOutput(Descriptor.getTable(), *Input);
+      if (*Output != Expected) {
+        std::string InputName = TrineStateNames[unsigned(*Input)];
+        return Fail(
+            Loc,
+            "entry '" + InputName + "=" + TrineStateNames[unsigned(*Output)] +
+                "' conflicts with selected truth table (expected '" +
+                InputName + "=" + TrineStateNames[unsigned(Expected)] + "')");
+      }
+      Descriptor.Entries |= 1u << unsigned(*Input);
+    } while (TryConsumeToken(tok::comma));
+  }
+  if (Tok.isNot(tok::greater))
+    return Fail(Tok.getLocation(), "expected '>' after descriptor");
+  SourceLocation RAngleLoc = ConsumeToken();
+  ExprResult Operand = ParseCastExpression(CastParseKind::AnyCastExpr);
+  if (Operand.isInvalid())
+    return ExprError();
+  return Actions.ActOnTrineUnaryExpr(AtLoc, RAngleLoc, Descriptor,
+                                     Operand.get(), PropertyLocs);
+}
 
 ExprResult
 Parser::ParseExpression(TypoCorrectionTypeBehavior CorrectionBehavior) {
@@ -1555,6 +1684,12 @@ Parser::ParseCastExpression(CastParseKind ParseKind, bool isAddressOfOperand,
     if (NotPrimaryExpression)
       *NotPrimaryExpression = true;
     SourceLocation AtLoc = ConsumeToken();
+    if (getLangOpts().CPlusPlusPlus) {
+      if (Tok.isNot(tok::less))
+        return ExprError(Diag(AtLoc, diag::err_trine_unary_descriptor)
+                         << "expected '<' after '@'");
+      return ParseTrineUnaryExpression(AtLoc);
+    }
     return ParseObjCAtExpression(AtLoc);
   }
   case tok::caret:

@@ -148,6 +148,8 @@ Retry:
   switch (Kind) {
   case tok::at: // May be a @try or @throw statement
     {
+      if (getLangOpts().CPlusPlusPlus)
+        return ParseExprStatement(StmtCtx);
       AtLoc = ConsumeToken();  // consume @
       return ParseObjCAtStatement(AtLoc, StmtCtx);
     }

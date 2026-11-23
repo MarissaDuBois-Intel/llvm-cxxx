@@ -8065,6 +8065,16 @@ static uint32_t getBitWidth(const Expr *E) {
 }
 
 template <class Emitter>
+bool Compiler<Emitter>::VisitTrineUnaryExpr(const TrineUnaryExpr *E) {
+  if (DiscardResult)
+    return discard(E->getSubExpr());
+  OptPrimType T = classify(E->getType());
+  if (!T)
+    return this->emitError(E);
+  return this->visit(E->getSubExpr()) && this->emitTrineUnary(*T, E, E);
+}
+
+template <class Emitter>
 bool Compiler<Emitter>::VisitUnaryOperator(const UnaryOperator *E) {
   if (E->containsErrors())
     return false;
